@@ -221,40 +221,73 @@ class ResumeScorer {
         return specializations;
     }
     
-    // 主评分函数
+    // 在 ResumeScorer 类中修改 scoreResume 方法
     scoreResume(text) {
         const analysis = this.analyzeResume(text);
         const baseScores = this.calculateScores(analysis);
         
         // 检测专精
         const specializations = this.detectSpecialization(analysis);
-        const enhancedScores = this.applySpecializationBonus(baseScores, specializations);
         
-        const suggestions = this.generateSuggestions(enhancedScores, analysis);
-        const jobRecommendations = this.recommendJobs(analysis, specializations);
-        
-        // 计算基础总分
-        const baseTotalScore = Object.values(baseScores).reduce((sum, scoreObj) => {
-            return sum + (typeof scoreObj === 'object' ? scoreObj.total : scoreObj);
-        }, 0);
+        // 计算基础总分（限制在100分内）
+        const baseTotalScore = Math.min(
+            Object.values(baseScores).reduce((sum, scoreObj) => {
+                return sum + (typeof scoreObj === 'object' ? scoreObj.total : scoreObj);
+            }, 0),
+            100
+        );
         
         // 计算专精加成分
         const specializationBonus = specializations.reduce((sum, spec) => sum + spec.bonus, 0);
         
-        // 最终总分
+        // 最终总分可以超过100
         const finalTotalScore = baseTotalScore + specializationBonus;
         
+        // 应用专精加成到各项分数（不改变基础分数结构）
+        const enhancedScores = this.applySpecializationDisplay(baseScores, specializations);
+        
+        const suggestions = this.generateSuggestions(enhancedScores, analysis);
+        const jobRecommendations = this.recommendJobs(analysis, specializations);
+        
         return {
-            baseScore: Math.min(Math.round(baseTotalScore), 100),
+            baseScore: Math.round(baseTotalScore),
             specializationBonus: specializationBonus,
             totalScore: Math.round(finalTotalScore),
             categoryScores: enhancedScores,
-            baseScores: baseScores,
+            baseScores: baseScores, // 保持原始基础分数
             analysis: analysis,
             specializations: specializations,
             suggestions: suggestions,
             jobRecommendations: jobRecommendations
         };
+    }
+    
+    // 新增：专精显示应用（不改变基础分数）
+    applySpecializationDisplay(baseScores, specializations) {
+        const displayScores = JSON.parse(JSON.stringify(baseScores));
+        
+        specializations.forEach(spec => {
+            switch(spec.type) {
+                case 'programming':
+                case 'data':
+                case 'design':
+                case 'engineering':
+                    // 为显示添加专精标记，但不改变实际分数
+                    displayScores.skills.specializationBonus = 
+                        (displayScores.skills.specializationBonus || 0) + spec.bonus;
+                    break;
+                case 'academic':
+                    displayScores.achievements.specializationBonus = 
+                        (displayScores.achievements.specializationBonus || 0) + spec.bonus;
+                    break;
+                case 'practical':
+                    displayScores.experience.specializationBonus = 
+                        (displayScores.experience.specializationBonus || 0) + spec.bonus;
+                    break;
+            }
+        });
+        
+        return displayScores;
     }
     
     // 应用专精加成

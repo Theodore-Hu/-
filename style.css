@@ -148,7 +148,7 @@ header p {
     transform: translateY(-2px);
 }
 
-/* 结果展示 - 总分区域 */
+/* 总分显示区域 */
 .score-overview {
     text-align: center;
     margin-bottom: 40px;
@@ -192,11 +192,13 @@ header p {
     justify-content: center;
     z-index: 2;
     position: relative;
-    gap: 4px;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
 }
 
 .total-score-main {
-    font-size: 2.8em;
+    font-size: 2.5em;
     font-weight: bold;
     color: #333;
     line-height: 1;
@@ -207,37 +209,36 @@ header p {
     display: flex;
     align-items: center;
     gap: 3px;
-    font-size: 0.7em;
-    margin-top: 2px;
+    font-size: 0.65em;
+    margin-top: 0;
 }
 
 .base-part {
     background: #e2e8f0;
     color: #4a5568;
-    padding: 2px 6px;
-    border-radius: 6px;
+    padding: 1px 4px;
+    border-radius: 4px;
     font-weight: 600;
+    font-size: 0.9em;
 }
 
 .plus-sign {
     color: #a0aec0;
     font-weight: 600;
+    font-size: 0.8em;
 }
 
 .bonus-part {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
-    padding: 2px 6px;
-    border-radius: 6px;
+    padding: 1px 4px;
+    border-radius: 4px;
     font-weight: 600;
+    font-size: 0.9em;
 }
 
 .score-suffix {
-    font-size: 1.2em;
-    color: #666;
-    z-index: 2;
-    position: absolute;
-    bottom: -25px;
+    display: none; /* 隐藏"分"字 */
 }
 
 .score-info {
@@ -257,9 +258,8 @@ header p {
     line-height: 1.5;
 }
 
-/* 专精加成的特殊圆环效果 */
+/* 专精加成效果 */
 .score-circle.excellent-plus {
-    position: relative;
     animation: pulse-glow 3s ease-in-out infinite;
 }
 
@@ -272,7 +272,7 @@ header p {
     }
 }
 
-/* 单独的专精信息显示区域 */
+/* 专精信息显示区域 */
 .specialization-info-separate {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -328,7 +328,6 @@ header p {
     font-size: 1.3em;
 }
 
-/* 优化后的评分卡片样式 */
 .score-item {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -344,7 +343,6 @@ header p {
     border-color: #667eea;
 }
 
-/* 主要评分行 */
 .main-score-row {
     display: flex;
     align-items: center;
@@ -473,31 +471,7 @@ header p {
     font-weight: 600;
 }
 
-.progress-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-
-.category-score {
-    font-weight: 700;
-    color: #667eea;
-    font-size: 1.1em;
-    min-width: 70px;
-    text-align: right;
-}
-
-/* 展开按钮优化 */
+/* 展开按钮 */
 .toggle-detail {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -539,7 +513,7 @@ header p {
     transform: rotate(180deg);
 }
 
-/* 详情区域优化 */
+/* 详情区域 */
 .category-detail {
     margin-top: 20px;
     padding: 20px;
@@ -575,7 +549,7 @@ header p {
     font-size: 1.2em;
 }
 
-/* 子项目优化 */
+/* 子项目 */
 .subcategory-item {
     display: flex;
     justify-content: space-between;
@@ -626,7 +600,6 @@ header p {
     background: #e2e8f0;
     border-radius: 3px;
     overflow: hidden;
-    position: relative;
 }
 
 .subcategory-progress-fill {
@@ -670,7 +643,7 @@ header p {
     color: #9b2c2c;
 }
 
-/* 专精标识优化 */
+/* 专精标识 */
 .specialization-badge {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -745,7 +718,7 @@ header p {
     font-style: italic;
 }
 
-/* 空状态优化 */
+/* 空状态 */
 .empty-subcategory {
     display: flex;
     flex-direction: column;
@@ -973,7 +946,7 @@ footer a:hover {
     }
     
     .score-breakdown-compact {
-        font-size: 0.65em;
+        font-size: 0.6em;
     }
     
     .specialization-info-separate {
@@ -1021,12 +994,12 @@ footer a:hover {
     }
     
     .score-breakdown-compact {
-        font-size: 0.6em;
+        font-size: 0.55em;
         gap: 2px;
     }
     
     .base-part, .bonus-part {
-        padding: 1px 4px;
-        font-size: 0.9em;
+        padding: 1px 3px;
+        font-size: 0.85em;
     }
 }

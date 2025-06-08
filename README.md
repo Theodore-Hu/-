@@ -5,7 +5,7 @@
 ## 🌟 项目特色
 
 ### 🎯 专为应届生定制
-- **学历权重优化**：采用学历学校加权的评分体系
+- **学历权重优化**：采用学历学校加权评分体系
 - **校园经历识别**：专门识别学术竞赛、奖学金、社团活动等校园经历
 - **技能专精检测**：自动识别编程、设计、数据分析等专业领域的技能专精度
 
@@ -65,7 +65,8 @@
 ### 本地部署
 ```bash
 # 克隆项目
-git clone [https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes]
+git clone https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes.git
+```
 
 ## 💻 使用说明
 
@@ -181,7 +182,7 @@ if (skills.programming.length >= 5) {
 
 ## 📧 联系方式
 
-- 项目主页：[GitHub Repository]((https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes)
+- 项目主页：[GitHub Repository](https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes)
 - 邮箱联系：HuYunt1999@163.com
 
 ---

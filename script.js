@@ -153,11 +153,11 @@ function displayResults(result) {
     resultSection.style.display = 'block';
     resultSection.scrollIntoView({ behavior: 'smooth' });
     
-    // 更新总分
-    updateTotalScore(result.totalScore);
+    // 更新总分（传入完整的result对象）
+    updateTotalScore(result);
     
     // 更新详细评分
-    updateDetailedScores(result.categoryScores);
+    updateDetailedScores(result.categoryScores, result.baseScores, result.specializationBonus);
     
     // 更新岗位推荐
     updateJobRecommendations(result.jobRecommendations);
@@ -165,9 +165,9 @@ function displayResults(result) {
     // 更新建议
     updateSuggestions(result.suggestions);
     
-    // 显示专精信息
+    // 显示专精信息（优化版）
     if (result.specializations && result.specializations.length > 0) {
-        showSpecializationInfo(result.specializations);
+        showSpecializationInfo(result.specializations, result.specializationBonus);
     }
     
     // 启动动画
@@ -176,96 +176,79 @@ function displayResults(result) {
     }, 500);
 }
 
-// 新增：显示专精信息
-function showSpecializationInfo(specializations) {
-    const container = document.querySelector('.score-overview');
-    
-    const specDiv = document.createElement('div');
-    specDiv.className = 'specialization-info';
-    specDiv.style.cssText = `
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 15px 20px;
-        border-radius: 10px;
-        margin-top: 20px;
-        text-align: center;
-        animation: fadeInUp 0.6s ease;
-    `;
-    
-    const specTypes = {
-        'programming': '💻 编程开发专精',
-        'data': '📊 数据分析专精', 
-        'design': '🎨 设计创作专精',
-        'engineering': '⚙️ 工程技术专精',
-        'academic': '🎓 学术研究专精',
-        'practical': '💼 实践应用专精'
-    };
-    
-    const specTexts = specializations.map(spec => specTypes[spec.type]).filter(Boolean);
-    const totalBonus = specializations.reduce((sum, s) => sum + s.bonus, 0);
-    
-    specDiv.innerHTML = `
-        <div style="font-weight: 600; margin-bottom: 5px;">⭐ 检测到专精领域</div>
-        <div style="font-size: 0.9em;">${specTexts.join(' • ')}</div>
-        <div style="font-size: 0.8em; margin-top: 5px; opacity: 0.9;">专精加成: +${totalBonus}分</div>
-    `;
-    
-    container.appendChild(specDiv);
-}
-
-// 更新总分显示
-function updateTotalScore(score) {
+// 修正：更新总分显示
+function updateTotalScore(result) {
     const scoreElement = document.getElementById('totalScore');
     const levelElement = document.getElementById('scoreLevel');
     const summaryElement = document.getElementById('scoreSummary');
     const circleElement = document.getElementById('scoreCircle');
     
-    // 动画计数效果
-    animateScore(scoreElement, 0, score, 1000);
+    const baseScore = result.baseScore;
+    const bonus = result.specializationBonus || 0;
+    const totalScore = result.totalScore;
     
-    // 设置圆环进度
-    const percentage = (score / 100) * 360;
-    circleElement.style.setProperty('--percentage', percentage + 'deg');
+    // 显示分数（如果有专精加成，特殊显示）
+    if (bonus > 0) {
+        scoreElement.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1.2;">
+                <span style="font-size: 2.5em; font-weight: bold; color: #333;">${totalScore}</span>
+                <span style="font-size: 0.7em; color: #667eea; margin-top: -8px;">
+                    ${baseScore}基础+${bonus}专精
+                </span>
+            </div>
+        `;
+    } else {
+        scoreElement.textContent = totalScore;
+    }
     
-    // 设置等级和颜色
-    const level = getScoreLevel(score);
+    // 设置圆环进度（基于100分制，但可以超过100%）
+    const percentage = Math.min((baseScore / 100) * 360, 360);
+    const bonusPercentage = bonus > 0 ? Math.min((bonus / 20) * 360, 72) : 0; // 专精加成用不同颜色
+    
+    // 创建渐变效果
+    if (bonus > 0) {
+        circleElement.style.background = `conic-gradient(
+            ${getScoreColor(baseScore)} 0deg, 
+            ${getScoreColor(baseScore)} ${percentage}deg,
+            #667eea ${percentage}deg,
+            #667eea ${percentage + bonusPercentage}deg,
+            #f0f0f0 ${percentage + bonusPercentage}deg
+        )`;
+        circleElement.classList.add('excellent-plus');
+    } else {
+        const color = getScoreColor(baseScore);
+        circleElement.style.background = `conic-gradient(${color} 0deg, ${color} ${percentage}deg, #f0f0f0 ${percentage}deg)`;
+        circleElement.classList.remove('excellent-plus');
+    }
+    
+    // 设置等级和颜色（基于最终分数）
+    const level = getScoreLevel(totalScore);
     levelElement.textContent = level.text;
     levelElement.style.color = level.color;
     
-    summaryElement.textContent = level.summary;
-    
-    // 设置圆环颜色
-    const color = getScoreColor(score);
-    circleElement.style.background = `conic-gradient(${color} 0deg, ${color} ${percentage}deg, #f0f0f0 ${percentage}deg)`;
-}
-
-// 动画计数
-function animateScore(element, start, end, duration) {
-    const startTime = performance.now();
-    
-    function update(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        const current = Math.round(start + (end - start) * easeOutQuart(progress));
-        element.textContent = current;
-        
-        if (progress < 1) {
-            requestAnimationFrame(update);
-        }
+    // 更新总结文字
+    if (bonus > 0) {
+        summaryElement.textContent = `${level.summary}（含专精加成${bonus}分）`;
+    } else {
+        summaryElement.textContent = level.summary;
     }
-    
-    requestAnimationFrame(update);
 }
 
-// 缓动函数
-function easeOutQuart(t) {
-    return 1 - Math.pow(1 - t, 4);
-}
-
-// 获取分数等级
+// 修正：支持超过100分的等级系统
 function getScoreLevel(score) {
-    if (score >= 90) {
+    if (score >= 110) {
+        return {
+            text: '卓越',
+            color: '#9f7aea', // 紫色表示超越
+            summary: '专精突出，简历质量超群！'
+        };
+    } else if (score >= 100) {
+        return {
+            text: '专精',
+            color: '#667eea', // 蓝色表示专精
+            summary: '技能专精，简历质量优异！'
+        };
+    } else if (score >= 90) {
         return {
             text: '优秀',
             color: '#48bb78',
@@ -298,6 +281,30 @@ function getScoreLevel(score) {
     }
 }
 
+// 动画计数
+function animateScore(element, start, end, duration) {
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        const current = Math.round(start + (end - start) * easeOutQuart(progress));
+        element.textContent = current;
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+// 缓动函数
+function easeOutQuart(t) {
+    return 1 - Math.pow(1 - t, 4);
+}
+
 // 获取分数颜色
 function getScoreColor(score) {
     if (score >= 80) return '#48bb78';
@@ -305,8 +312,58 @@ function getScoreColor(score) {
     return '#e53e3e';
 }
 
+// 优化专精信息显示
+function showSpecializationInfo(specializations, totalBonus) {
+    const container = document.querySelector('.score-overview');
+    
+    // 移除之前的专精信息
+    const existing = container.querySelector('.specialization-info');
+    if (existing) existing.remove();
+    
+    const specDiv = document.createElement('div');
+    specDiv.className = 'specialization-info';
+    specDiv.style.cssText = `
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-top: 20px;
+        animation: fadeInUp 0.6s ease;
+    `;
+    
+    const specTypes = {
+        'programming': '💻 编程开发',
+        'data': '📊 数据分析', 
+        'design': '🎨 设计创作',
+        'engineering': '⚙️ 工程技术',
+        'academic': '🎓 学术研究',
+        'practical': '💼 实践应用'
+    };
+    
+    let specDetails = specializations.map(spec => 
+        `${specTypes[spec.type]} Lv.${spec.level} (+${spec.bonus}分)`
+    ).join(' • ');
+    
+    specDiv.innerHTML = `
+        <div style="text-align: center;">
+            <div style="font-weight: 600; margin-bottom: 10px; font-size: 1.1em;">
+                ⭐ 专精领域识别
+            </div>
+            <div style="font-size: 0.95em; margin-bottom: 10px; line-height: 1.5;">
+                ${specDetails}
+            </div>
+            <div style="font-size: 0.9em; background: rgba(255,255,255,0.2); 
+                       padding: 8px 16px; border-radius: 20px; display: inline-block;">
+                总专精加成: <strong>+${totalBonus}分</strong>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(specDiv);
+}
+
 // 更新详细评分显示
-function updateDetailedScores(categoryScores) {
+function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
     const container = document.getElementById('scoreCategories');
     const categoryInfo = {
         basicInfo: {
@@ -359,6 +416,7 @@ function updateDetailedScores(categoryScores) {
     container.innerHTML = '';
     
     Object.entries(categoryScores).forEach(([category, scoreData], index) => {
+        const categoryName = category
         const categoryName = categoryInfo[category].name;
         const subcategories = categoryInfo[category].subcategories;
         
@@ -368,6 +426,7 @@ function updateDetailedScores(categoryScores) {
         
         // 主要得分显示
         const mainScore = scoreData.total || scoreData;
+        const baseScore = baseScores[category].total || baseScores[category];
         const maxScore = typeof scoreData === 'object' ? 
             Object.values(scoreData.maxScores || {}).reduce((a, b) => a + b, 0) : 
             getMaxScore(category);
@@ -375,6 +434,10 @@ function updateDetailedScores(categoryScores) {
         
         // 获取分数等级
         const scoreLevel = getScoreGrade(mainScore, maxScore);
+        
+        // 显示是否有专精加成
+        const hasBonus = mainScore > baseScore;
+        const bonusText = hasBonus ? ` (+${mainScore - baseScore}专精)` : '';
         
         item.innerHTML = `
             <div class="main-score-row">
@@ -386,10 +449,11 @@ function updateDetailedScores(categoryScores) {
                 </div>
                 <div class="score-right-section">
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: 0%" data-target="${percentage}"></div>
+                        <div class="progress-fill" style="width: 0%" data-target="${Math.min(percentage, 100)}"></div>
+                        ${hasBonus ? `<div class="progress-bonus" style="width: 0%" data-target="${Math.min((mainScore - baseScore) / maxScore * 100, 20)}"></div>` : ''}
                     </div>
                     <div class="category-score ${scoreLevel.scoreClass}">
-                        ${mainScore}/${maxScore}
+                        ${mainScore}/${maxScore}${bonusText}
                     </div>
                     <button class="toggle-detail collapsed" onclick="toggleCategoryDetail('${category}')">
                         详情
@@ -411,11 +475,20 @@ function updateDetailedScores(categoryScores) {
             const progressFill = item.querySelector('.progress-fill');
             const targetWidth = progressFill.getAttribute('data-target');
             progressFill.style.width = targetWidth + '%';
+            
+            // 专精加成进度条动画
+            const progressBonus = item.querySelector('.progress-bonus');
+            if (progressBonus) {
+                setTimeout(() => {
+                    const bonusWidth = progressBonus.getAttribute('data-target');
+                    progressBonus.style.width = bonusWidth + '%';
+                }, 500);
+            }
         }, 200 + index * 100);
     });
 }
 
-// 生成子项HTML - 优化版
+// 生成子项HTML
 function generateSubcategoryHTML(scoreData, subcategories) {
     if (!scoreData.details) {
         return `
@@ -485,7 +558,7 @@ function getScoreGrade(score, maxScore) {
     }
 }
 
-// 切换详情显示 - 优化版
+// 切换详情显示
 function toggleCategoryDetail(category) {
     const detailDiv = document.getElementById(`detail-${category}`);
     const button = document.querySelector(`button[onclick="toggleCategoryDetail('${category}')"]`);
@@ -636,7 +709,6 @@ function hideLoading() {
 
 // 显示错误信息
 function showError(message) {
-    // 创建更友好的错误提示
     const errorDiv = document.createElement('div');
     errorDiv.style.cssText = `
         position: fixed;
@@ -710,7 +782,9 @@ function generateReport(analysis) {
 生成时间: ${new Date().toLocaleString()}
 
 📊 总体评分
-总分: ${analysis.totalScore}/100分
+基础分: ${analysis.baseScore}/100分
+专精加成: +${analysis.specializationBonus}分
+总分: ${analysis.totalScore}分
 等级: ${getScoreLevel(analysis.totalScore).text}
 评语: ${getScoreLevel(analysis.totalScore).summary}
 
@@ -749,10 +823,13 @@ function generateReport(analysis) {
     
     Object.entries(analysis.categoryScores).forEach(([category, scoreData]) => {
         const score = typeof scoreData === 'object' ? scoreData.total : scoreData;
+        const baseScore = analysis.baseScores[category].total || analysis.baseScores[category];
         const maxScore = typeof scoreData === 'object' ? 
             Object.values(scoreData.maxScores || {}).reduce((a, b) => a + b, 0) : 
             getMaxScore(category);
-        report += `- ${categoryNames[category]}: ${score}/${maxScore}分
+        
+        const bonusText = score > baseScore ? ` (含${score - baseScore}分专精加成)` : '';
+        report += `- ${categoryNames[category]}: ${score}/${maxScore}分${bonusText}
 `;
     });
     
@@ -794,7 +871,6 @@ style.textContent = `
         opacity: 1;
     }
 }
-
 @keyframes fadeInUp {
     from {
         opacity: 0;

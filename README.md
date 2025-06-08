@@ -65,20 +65,7 @@
 ### 本地部署
 ```bash
 # 克隆项目
-git clone https://github.com/yourusername/resume-scorer.git
-
-# 进入项目目录
-cd resume-scorer
-
-# 使用任意HTTP服务器运行
-# 方法1：使用Python
-python -m http.server 8000
-
-# 方法2：使用Node.js
-npx serve .
-
-# 方法3：使用VS Code Live Server插件
-```
+git clone [https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes]
 
 ## 💻 使用说明
 

@@ -1197,7 +1197,7 @@ class ResumeScorer {
         };
     }
     
-    // 修正奖励荣誉评分详情 - 细项满分10分
+    // 修正奖励荣誉评分详情 - 细项满分5分
     scoreAchievementsDetailed(analysis) {
         const ach = analysis.achievements;
         
@@ -1206,7 +1206,7 @@ class ResumeScorer {
         console.log('Total Achievement Score:', ach.totalScore);
         console.log('Extra Score:', ach.extraScore);
         
-        // 计算各细项实际得分
+        // 计算各细项实际得分 - 每项限制在5分内
         const details = {};
         
         // 学生干部得分计算
@@ -1214,7 +1214,7 @@ class ResumeScorer {
         if (ach.details.chairman) leadershipScore += ach.details.chairman * 3;
         if (ach.details.minister) leadershipScore += ach.details.minister * 2;
         if (ach.details.member) leadershipScore += ach.details.member * 1;
-        details.leadership = Math.min(leadershipScore, 10); // 限制在10分内
+        details.leadership = Math.min(leadershipScore, 5); // 限制在5分内
         
         // 荣誉奖励得分计算
         let honorScore = 0;
@@ -1222,7 +1222,7 @@ class ResumeScorer {
         if (ach.details.provincialHonor) honorScore += ach.details.provincialHonor * 3;
         if (ach.details.schoolHonor) honorScore += ach.details.schoolHonor * 2;
         if (ach.details.collegeHonor) honorScore += ach.details.collegeHonor * 1;
-        details.honor = Math.min(honorScore, 10); // 限制在10分内
+        details.honor = Math.min(honorScore, 5); // 限制在5分内
         
         // 竞赛获奖得分计算
         let competitionScore = 0;
@@ -1230,25 +1230,27 @@ class ResumeScorer {
         if (ach.details.nationalComp) competitionScore += ach.details.nationalComp * 3;
         if (ach.details.provincialComp) competitionScore += ach.details.provincialComp * 2;
         if (ach.details.schoolComp) competitionScore += ach.details.schoolComp * 1;
-        details.competition = Math.min(competitionScore, 10); // 限制在10分内
+        details.competition = Math.min(competitionScore, 5); // 限制在5分内
         
         // 证书认证得分计算
         let certificateScore = 0;
         if (ach.details.advancedCert) certificateScore += ach.details.advancedCert * 2;
         if (ach.details.generalCert) certificateScore += ach.details.generalCert * 1;
-        details.certificate = Math.min(certificateScore, 10); // 限制在10分内
+        details.certificate = Math.min(certificateScore, 5); // 限制在5分内
         
         return {
             total: ach.totalScore,
             details: details,
             maxScore: this.maxScores.achievements,
-            // 修正：每个细项满分10分
+            // 修正：每个细项满分5分
             subMaxScores: {
                 leadership: 5,
                 honor: 5,
                 competition: 5,
                 certificate: 5
-            }
+            },
+            // 添加超出分数信息用于专精显示
+            extraScore: ach.extraScore || {}
         };
     }
     

@@ -1730,3 +1730,39 @@ textarea:focus {
         display: block !important;
     }
 }
+
+/* 超出分数指示器样式 */
+.extra-score-indicator {
+    color: #667eea !important;
+    font-weight: 700 !important;
+    margin-left: 2px;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-size: 0.8em;
+}
+
+/* 有专精加成的子项目样式增强 */
+.subcategory-item.has-specialization {
+    border-left: 3px solid #667eea;
+    background: linear-gradient(90deg, #f8faff 0%, #ffffff 100%);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.subcategory-item.has-specialization:hover {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    transform: translateY(-1px);
+}
+
+/* 专精进度条满格效果 */
+.subcategory-item.has-specialization .subcategory-progress-fill {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+}
+
+/* 专精分数显示 */
+.subcategory-score.excellent {
+    color: #667eea !important;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(102, 126, 234, 0.3);
+}

@@ -521,7 +521,7 @@ class ResumeScoreApp {
                 subcategories: {
                     school: '学校层次',
                     academic: '学业成绩',
-                    major: '专业匹配'
+                    degree: '学历层次'  // 修改为学历层次
                 }
             },
             skills: {
@@ -531,7 +531,7 @@ class ResumeScoreApp {
                     design: '设计创作',
                     data: '数据分析',
                     engineering: '工程技术',
-                    business: '商务运营'
+                    arts: '文体艺术'  // 新增文体艺术
                 }
             },
             experience: {
@@ -539,16 +539,16 @@ class ResumeScoreApp {
                 subcategories: {
                     internship: '实习经历',
                     project: '项目经验',
-                    quality: '经验质量'
+                    academic: '学术成果'  // 修改为学术成果
                 }
             },
             achievements: {
                 name: '🏆 奖励荣誉',
                 subcategories: {
-                    scholarshipHonor: '奖学金荣誉',
+                    leadership: '学生干部',
+                    honor: '荣誉奖励',
                     competition: '竞赛获奖',
-                    certificate: '证书认证',
-                    leadership: '领导经历'
+                    certificate: '证书认证'
                 }
             }
         };
@@ -1098,9 +1098,9 @@ class ResumeScoreApp {
     getMaxScore(category) {
         const maxScores = {
             basicInfo: 10,
-            education: 25,
-            skills: 25,
-            experience: 25,
+            education: 30,
+            skills: 20,      // 修改为20分
+            experience: 25,  // 修改为25分
             achievements: 15
         };
         return maxScores[category] || 10;

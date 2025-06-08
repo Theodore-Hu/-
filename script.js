@@ -176,6 +176,7 @@ function displayResults(result) {
     }, 500);
 }
 
+// 修改 updateTotalScore 函数
 function updateTotalScore(result) {
     const scoreElement = document.getElementById('totalScore');
     const levelElement = document.getElementById('scoreLevel');
@@ -248,10 +249,56 @@ function updateTotalScore(result) {
         summaryElement.innerHTML += `<br><small style="color: #667eea; font-weight: 500; margin-top: 8px; display: inline-block;">🌟 专精加成让您脱颖而出！</small>`;
     }
     
-    // 如果有专精信息，在总分区域下方单独显示
+    // 如果有专精信息，在总分区域下方单独显示（只显示一次）
     if (result.specializations && result.specializations.length > 0) {
+        // 先清除可能存在的旧专精信息
+        const existingSpecInfo = document.querySelector('.specialization-info-separate');
+        if (existingSpecInfo) {
+            existingSpecInfo.remove();
+        }
+        
         showSpecializationInfoSeparate(result.specializations, result.specializationBonus);
     }
+}
+
+// 修改专精信息显示函数
+function showSpecializationInfoSeparate(specializations, totalBonus) {
+    const container = document.querySelector('.score-overview');
+    
+    // 确保移除之前的专精信息
+    const existing = container.querySelector('.specialization-info-separate');
+    if (existing) existing.remove();
+    
+    const specDiv = document.createElement('div');
+    specDiv.className = 'specialization-info-separate';
+    
+    const specTypes = {
+        'programming': '💻 编程开发',
+        'data': '📊 数据分析', 
+        'design': '🎨 设计创作',
+        'engineering': '⚙️ 工程技术',
+        'academic': '🎓 学术研究',
+        'practical': '💼 实践应用'
+    };
+    
+    let specDetails = specializations.map(spec => 
+        `${specTypes[spec.type]} Lv.${spec.level} (+${spec.bonus}分)`
+    ).join(' • ');
+    
+    specDiv.innerHTML = `
+        <div class="spec-header-separate">
+            <span class="spec-icon">⭐</span>
+            <span class="spec-title">专精领域识别</span>
+        </div>
+        <div class="spec-details-separate">
+            ${specDetails}
+        </div>
+        <div class="spec-total-separate">
+            总专精加成: <strong>+${totalBonus}分</strong>
+        </div>
+    `;
+    
+    container.appendChild(specDiv);
 }
 
 // 单独显示专精信息，避免与总分重叠

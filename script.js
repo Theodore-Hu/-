@@ -364,6 +364,8 @@ function showSpecializationInfo(specializations, totalBonus) {
 
 // 更新详细评分显示
 function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
+    console.log('开始更新详细评分', categoryScores); // 调试信息
+    
     const container = document.getElementById('scoreCategories');
     const categoryInfo = {
         basicInfo: {
@@ -415,13 +417,11 @@ function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
     
     container.innerHTML = '';
     
-Object.entries(categoryScores).forEach(([category, scoreData], index) => {
-    const categoryName = categoryInfo[category].name;
-    const subcategories = categoryInfo[category].subcategories;
-    
-    const item = document.createElement('div');
-    item.className = 'score-item';
-    item.style.animationDelay = `${index * 0.1}s`;
+    Object.entries(categoryScores).forEach(([category, scoreData], index) => {
+        console.log(`处理类别: ${category}`, scoreData); // 调试信息
+        
+        const categoryName = categoryInfo[category].name;
+        const subcategories = categoryInfo[category].subcategories;
         
         const item = document.createElement('div');
         item.className = 'score-item';

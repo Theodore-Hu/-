@@ -1576,3 +1576,148 @@ textarea:focus {
         display: block !important;
     }
 }
+
+/* 专精信息显示区域 - 优化版 */
+.specialization-info-separate {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 16px;
+    margin-top: 30px;
+    text-align: left;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    animation: fadeInUp 0.6s ease 0.5s both;
+}
+
+.spec-header-separate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.spec-details-separate {
+    font-size: 0.95em;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.spec-category {
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 0.9em;
+}
+
+.spec-total-separate {
+    font-size: 1.1em;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 12px 20px;
+    border-radius: 20px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.spec-total-separate strong {
+    font-weight: 700;
+    font-size: 1.2em;
+}
+
+/* 专精说明区域 - 详情页 */
+.specialization-explanation {
+    background: linear-gradient(135deg, #f8faff 0%, #e6f0ff 100%);
+    border: 2px solid #667eea;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.spec-item {
+    margin-bottom: 8px;
+}
+
+.spec-boost {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e0;
+    margin-bottom: 4px;
+}
+
+.spec-total-boost {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-top: 8px;
+    font-weight: 600;
+}
+
+.boost-label {
+    font-weight: 500;
+    color: #4a5568;
+}
+
+.spec-total-boost .boost-label {
+    color: white;
+}
+
+.boost-value {
+    font-weight: 700;
+    color: #667eea;
+    font-size: 1.1em;
+}
+
+.spec-total-boost .boost-value {
+    color: white;
+    font-size: 1.2em;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+    .specialization-info-separate {
+        margin-top: 20px;
+        padding: 16px;
+    }
+    
+    .spec-details-separate {
+        font-size: 0.9em;
+        padding: 10px;
+    }
+    
+    .spec-category {
+        font-size: 0.85em;
+        padding: 6px 10px;
+    }
+    
+    .spec-total-separate {
+        font-size: 1em;
+        padding: 10px 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .spec-boost, .spec-total-boost {
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+    }
+    
+    .boost-value {
+        font-size: 1em;
+    }
+    
+    .spec-total-boost .boost-value {
+        font-size: 1.1em;
+    }
+}

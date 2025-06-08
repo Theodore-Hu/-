@@ -338,7 +338,7 @@ class ResumeScorer {
         return education;
     }
     
-    // 修正学历层次计算 - 确保最高5分
+    // 修正学历层次计算 - 单学位不加分，多学位才加分
     calculateDegreeScore(degrees) {
         let score = 0;
         const degreeCount = {};
@@ -356,12 +356,15 @@ class ResumeScorer {
             }
         });
         
-        // 多学位加分：每多一个学位+1分
+        // 多学位加分：只有当总学位数 > 1 时才加分
         const totalDegrees = Object.values(degreeCount).reduce((sum, count) => sum + count, 0);
         if (totalDegrees > 1) {
+            // 每多一个学位+1分（总数-1）
             score += (totalDegrees - 1) * 1;
+            console.log('多学位加分:', (totalDegrees - 1), '总学位数:', totalDegrees);
         }
         
+        console.log('学历层次最终得分:', score, '(限制在5分内)');
         // 确保最高5分
         return Math.min(score, 5);
     }
@@ -404,6 +407,7 @@ class ResumeScorer {
         return cleanText.includes(cleanKeyword) || cleanKeyword.includes(cleanText);
     }
     
+    // 修正实践经验分析
     analyzeExperience(text) {
         const internshipCount = Math.max(
             (text.match(/实习|intern/gi) || []).length, 
@@ -418,18 +422,33 @@ class ResumeScorer {
         const hasCompanyName = /(有限公司|股份|集团|科技|互联网|腾讯|阿里|百度|字节|美团|京东|华为|小米|网易|滴滴|快手)/i.test(text);
         const hasAchievement = /(完成|实现|提升|优化|负责|开发|设计|获得|达到)/i.test(text);
         
-        const internshipScore = Math.min(internshipCount * (hasCompanyName ? 3 : 2.5), 15);
-        const projectScore = Math.min(projectCount * (hasAchievement ? 3 : 2.5), 15);
-        const academicScore = this.calculateAcademicScore(text);
+        // 修正：每项满分10分，超出部分算专精
+        const internshipBaseScore = Math.min(internshipCount * (hasCompanyName ? 3 : 2.5), 10);
+        const projectBaseScore = Math.min(projectCount * (hasAchievement ? 3 : 2.5), 10);
+        const academicBaseScore = Math.min(this.calculateAcademicScore(text), 10);
+        
+        // 计算超出的部分（用于专精加成）
+        const internshipExtraScore = Math.max(0, internshipCount * (hasCompanyName ? 3 : 2.5) - 10);
+        const projectExtraScore = Math.max(0, projectCount * (hasAchievement ? 3 : 2.5) - 10);
+        const academicExtraScore = Math.max(0, this.calculateAcademicScore(text) - 10);
+        
+        console.log('实践经验评分:');
+        console.log('实习基础分:', internshipBaseScore, '超出分:', internshipExtraScore);
+        console.log('项目基础分:', projectBaseScore, '超出分:', projectExtraScore);
+        console.log('学术基础分:', academicBaseScore, '超出分:', academicExtraScore);
         
         return {
             internshipCount: internshipCount,
             projectCount: projectCount,
             hasCompanyName: hasCompanyName,
             hasAchievement: hasAchievement,
-            internshipScore: internshipScore,
-            projectScore: projectScore,
-            academicScore: academicScore
+            internshipScore: internshipBaseScore,
+            projectScore: projectBaseScore,
+            academicScore: academicBaseScore,
+            // 新增：超出部分用于专精计算
+            internshipExtraScore: internshipExtraScore,
+            projectExtraScore: projectExtraScore,
+            academicExtraScore: academicExtraScore
         };
     }
     
@@ -454,14 +473,15 @@ class ResumeScorer {
         return Math.min(score, 15);
     }
     
-    // 修正后的奖励荣誉分析
+    // 修正奖励荣誉分析 - 改进计分逻辑
     analyzeAchievements(text) {
         let totalScore = 0;
         const details = {};
+        const extraScore = {}; // 记录超出部分
         
         console.log('开始分析奖励荣誉:', text.substring(0, 200));
         
-        // 学生干部 - 改进正则表达式
+        // 学生干部
         const chairmanPatterns = [
             /(学生会|社团|协会|俱乐部).{0,10}(主席|会长|社长)/gi,
             /(主席|会长|社长)/gi
@@ -503,219 +523,142 @@ class ResumeScorer {
             }
         });
         
+        // 学生干部计分 - 限制在5分内
+        let leadershipScore = 0;
         if (chairmanCount > 0) {
+            const rawScore = chairmanCount * 3;
+            const limitedScore = Math.min(rawScore, 5);
             details.chairman = chairmanCount;
-            totalScore += chairmanCount * 3;
-            console.log('主席级别得分:', chairmanCount * 3);
+            leadershipScore += limitedScore;
+            if (rawScore > 5) {
+                extraScore.leadership = (extraScore.leadership || 0) + (rawScore - 5);
+            }
+            console.log('主席级别得分:', limitedScore, '超出:', rawScore - limitedScore);
         }
         if (ministerCount > 0) {
+            const rawScore = ministerCount * 2;
+            const remainingLimit = Math.max(0, 5 - leadershipScore);
+            const limitedScore = Math.min(rawScore, remainingLimit);
             details.minister = ministerCount;
-            totalScore += ministerCount * 2;
-            console.log('部长级别得分:', ministerCount * 2);
+            leadershipScore += limitedScore;
+            if (rawScore > limitedScore) {
+                extraScore.leadership = (extraScore.leadership || 0) + (rawScore - limitedScore);
+            }
+            console.log('部长级别得分:', limitedScore, '超出:', rawScore - limitedScore);
         }
         if (memberCount > 0) {
+            const rawScore = memberCount * 1;
+            const remainingLimit = Math.max(0, 5 - leadershipScore);
+            const limitedScore = Math.min(rawScore, remainingLimit);
             details.member = memberCount;
-            totalScore += memberCount * 1;
-            console.log('成员级别得分:', memberCount * 1);
-        }
-        
-        // 奖学金和荣誉 - 改进识别，默认为校级
-        const scholarshipPatterns = [
-            // 明确级别的奖学金
-            /(国家.{0,10}奖学金)/gi,
-            /(国家.{0,10}励志奖学金)/gi,
-            /(省.{0,10}奖学金)/gi,
-            /(校.{0,10}奖学金)/gi,
-            /(院.{0,10}奖学金)/gi,
-            // 通用奖学金（默认校级）
-            /(一等奖学金|二等奖学金|三等奖学金|特等奖学金)/gi,
-            /(优秀学生奖学金|学业奖学金|综合奖学金)/gi,
-            /(奖学金)/gi
-        ];
-        
-        let nationalScholarship = 0;
-        let provincialScholarship = 0;
-        let schoolScholarship = 0;
-        let collegeScholarship = 0;
-        
-        // 国家级奖学金
-        const nationalMatches = text.match(/(国家.{0,10}奖学金|国家.{0,10}励志奖学金)/gi);
-        if (nationalMatches) {
-            nationalScholarship = nationalMatches.length;
-            console.log('找到国家级奖学金:', nationalMatches);
-        }
-        
-        // 省级奖学金
-        const provincialMatches = text.match(/(省.{0,10}奖学金|省级.{0,10}奖学金)/gi);
-        if (provincialMatches) {
-            provincialScholarship = provincialMatches.length;
-            console.log('找到省级奖学金:', provincialMatches);
-        }
-        
-        // 校级奖学金（明确标注的）
-        const schoolMatches = text.match(/(校.{0,10}奖学金|校级.{0,10}奖学金)/gi);
-        if (schoolMatches) {
-            schoolScholarship += schoolMatches.length;
-            console.log('找到校级奖学金:', schoolMatches);
-        }
-        
-        // 院级奖学金
-        const collegeMatches = text.match(/(院.{0,10}奖学金|院级.{0,10}奖学金)/gi);
-        if (collegeMatches) {
-            collegeScholarship = collegeMatches.length;
-            console.log('找到院级奖学金:', collegeMatches);
-        }
-        
-        // 默认校级的奖学金（没有明确级别的）
-        const generalMatches = text.match(/(一等奖学金|二等奖学金|三等奖学金|特等奖学金|优秀学生奖学金|学业奖学金|综合奖学金)/gi);
-        if (generalMatches) {
-            schoolScholarship += generalMatches.length;
-            console.log('找到通用奖学金（按校级计算）:', generalMatches);
-        }
-        
-        // 其他未分类的奖学金也按校级计算
-        const allScholarshipMatches = text.match(/奖学金/gi);
-        if (allScholarshipMatches) {
-            const totalFound = nationalScholarship + provincialScholarship + schoolScholarship + collegeScholarship;
-            const remaining = allScholarshipMatches.length - totalFound;
-            if (remaining > 0) {
-                schoolScholarship += remaining;
-                console.log('其他奖学金按校级计算:', remaining);
+            leadershipScore += limitedScore;
+            if (rawScore > limitedScore) {
+                extraScore.leadership = (extraScore.leadership || 0) + (rawScore - limitedScore);
             }
+            console.log('成员级别得分:', limitedScore, '超出:', rawScore - limitedScore);
         }
         
-        // 记录和计分
-        if (nationalScholarship > 0) {
-            details.nationalHonor = nationalScholarship;
-            totalScore += nationalScholarship * 4;
-        }
-        if (provincialScholarship > 0) {
-            details.provincialHonor = provincialScholarship;
-            totalScore += provincialScholarship * 3;
-        }
-        if (schoolScholarship > 0) {
-            details.schoolHonor = schoolScholarship;
-            totalScore += schoolScholarship * 2;
-        }
-        if (collegeScholarship > 0) {
-            details.collegeHonor = collegeScholarship;
-            totalScore += collegeScholarship * 1;
-        }
+        totalScore += leadershipScore;
         
-        // 其他荣誉称号
-        const honorPatterns = [
-            /(优秀学生|三好学生|优秀毕业生|优秀团员|优秀党员)/gi,
-            /(先进个人|模范学生)/gi
-        ];
+        // 奖学金和荣誉计分 - 每类限制在5分内
+        const honorCategories = {
+            national: { patterns: [/(国家.{0,10}奖学金|国家.{0,10}励志奖学金)/gi], score: 4 },
+            provincial: { patterns: [/(省.{0,10}奖学金|省级.{0,10}奖学金)/gi], score: 3 },
+            school: { 
+                patterns: [
+                    /(校.{0,10}奖学金|校级.{0,10}奖学金)/gi,
+                    /(一等奖学金|二等奖学金|三等奖学金|特等奖学金|优秀学生奖学金|学业奖学金|综合奖学金)/gi,
+                    /(优秀学生|三好学生|优秀毕业生|优秀团员|优秀党员)/gi
+                ], 
+                score: 2 
+            },
+            college: { patterns: [/(院.{0,10}奖学金|院级.{0,10}奖学金)/gi], score: 1 }
+        };
         
-        honorPatterns.forEach(pattern => {
-            const matches = text.match(pattern);
-            if (matches) {
-                // 没有明确级别的荣誉默认为校级
-                if (!details.schoolHonor) details.schoolHonor = 0;
-                details.schoolHonor += matches.length;
-                totalScore += matches.length * 2;
-                console.log('找到荣誉称号（按校级计算）:', matches);
+        Object.entries(honorCategories).forEach(([category, config]) => {
+            let count = 0;
+            config.patterns.forEach(pattern => {
+                const matches = text.match(pattern);
+                if (matches) count += matches.length;
+            });
+            
+            if (count > 0) {
+                const rawScore = count * config.score;
+                const limitedScore = Math.min(rawScore, 5);
+                details[category + 'Honor'] = count;
+                totalScore += limitedScore;
+                if (rawScore > 5) {
+                    extraScore.honor = (extraScore.honor || 0) + (rawScore - 5);
+                }
+                console.log(`${category}荣誉得分:`, limitedScore, '超出:', rawScore - limitedScore);
             }
         });
         
-        // 竞赛获奖 - 改进识别，默认为校级
-        const competitionPatterns = [
-            // 明确级别的竞赛
-            /(国际.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi,
-            /(全国.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi,
-            /(省.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi,
-            /(校.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi,
-            // 知名竞赛
-            /(ACM|ICPC|挑战杯|数学建模|创新创业)/gi,
-            // 通用竞赛（默认校级）
-            /(一等奖|二等奖|三等奖|特等奖|金奖|银奖|铜奖)/gi
-        ];
+        // 竞赛获奖计分 - 限制在5分内
+        const competitionCategories = {
+            international: { patterns: [/(国际.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|ACM|ICPC)/gi], score: 4 },
+            national: { patterns: [/(全国.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|国家级.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|挑战杯|数学建模|创新创业)/gi], score: 3 },
+            provincial: { patterns: [/(省.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|省级.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi], score: 2 },
+            school: { patterns: [/(校.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|一等奖|二等奖|三等奖|特等奖|金奖|银奖|铜奖)/gi], score: 1 }
+        };
         
-        let internationalComp = 0;
-        let nationalComp = 0;
-        let provincialComp = 0;
-        let schoolComp = 0;
-        
-        // 国际竞赛
-        const intCompMatches = text.match(/(国际.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|ACM|ICPC)/gi);
-        if (intCompMatches) {
-            internationalComp = intCompMatches.length;
-            console.log('找到国际竞赛:', intCompMatches);
-        }
-        
-        // 国家级竞赛
-        const natCompMatches = text.match(/(全国.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|国家级.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|挑战杯|数学建模|创新创业)/gi);
-        if (natCompMatches) {
-            nationalComp = natCompMatches.length;
-            console.log('找到国家级竞赛:', natCompMatches);
-        }
-        
-        // 省级竞赛
-        const provCompMatches = text.match(/(省.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|省级.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi);
-        if (provCompMatches) {
-            provincialComp = provCompMatches.length;
-            console.log('找到省级竞赛:', provCompMatches);
-        }
-        
-        // 校级竞赛（明确标注的）
-        const schCompMatches = text.match(/(校.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|校级.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi);
-        if (schCompMatches) {
-            schoolComp += schCompMatches.length;
-            console.log('找到校级竞赛:', schCompMatches);
-        }
-        
-        // 通用获奖（默认校级）
-        const generalAwardMatches = text.match(/(一等奖|二等奖|三等奖|特等奖|金奖|银奖|铜奖)/gi);
-        if (generalAwardMatches) {
-            // 排除已经计算过的
-            const totalCompFound = internationalComp + nationalComp + provincialComp + schoolComp;
-            const remainingAwards = Math.max(0, generalAwardMatches.length - totalCompFound);
-            if (remainingAwards > 0) {
-                schoolComp += remainingAwards;
-                console.log('通用获奖按校级计算:', remainingAwards);
+        let competitionScore = 0;
+        Object.entries(competitionCategories).forEach(([category, config]) => {
+            let count = 0;
+            config.patterns.forEach(pattern => {
+                const matches = text.match(pattern);
+                if (matches) count += matches.length;
+            });
+            
+            if (count > 0) {
+                const rawScore = count * config.score;
+                const remainingLimit = Math.max(0, 5 - competitionScore);
+                const limitedScore = Math.min(rawScore, remainingLimit);
+                details[category + 'Comp'] = count;
+                competitionScore += limitedScore;
+                totalScore += limitedScore;
+                if (rawScore > limitedScore) {
+                    extraScore.competition = (extraScore.competition || 0) + (rawScore - limitedScore);
+                }
+                console.log(`${category}竞赛得分:`, limitedScore, '超出:', rawScore - limitedScore);
             }
-        }
+        });
         
-        // 记录和计分
-        if (internationalComp > 0) {
-            details.internationalComp = internationalComp;
-            totalScore += internationalComp * 4;
-        }
-        if (nationalComp > 0) {
-            details.nationalComp = nationalComp;
-            totalScore += nationalComp * 3;
-        }
-        if (provincialComp > 0) {
-            details.provincialComp = provincialComp;
-            totalScore += provincialComp * 2;
-        }
-        if (schoolComp > 0) {
-            details.schoolComp = schoolComp;
-            totalScore += schoolComp * 1;
-        }
-        
-        // 证书认证
+        // 证书认证 - 限制在5分内
+        let certScore = 0;
         const advancedCertMatches = text.match(/(CPA|注册会计师|司法考试|法律职业资格|高级.{0,10}证书|PMP|CISSP)/gi);
         if (advancedCertMatches) {
+            const rawScore = advancedCertMatches.length * 2;
+            const limitedScore = Math.min(rawScore, 5);
             details.advancedCert = advancedCertMatches.length;
-            totalScore += advancedCertMatches.length * 2;
-            console.log('找到高级证书:', advancedCertMatches);
+            certScore += limitedScore;
+            totalScore += limitedScore;
+            if (rawScore > 5) {
+                extraScore.certificate = (extraScore.certificate || 0) + (rawScore - 5);
+            }
+            console.log('高级证书得分:', limitedScore, '超出:', rawScore - limitedScore);
         }
         
         const generalCertMatches = text.match(/(英语.*[四六]级|CET-[46]|托福|雅思|GRE|计算机.*级|软考|普通话.*级|驾驶证|驾照)/gi);
         if (generalCertMatches) {
+            const rawScore = generalCertMatches.length * 1;
+            const remainingLimit = Math.max(0, 5 - certScore);
+            const limitedScore = Math.min(rawScore, remainingLimit);
             details.generalCert = generalCertMatches.length;
-            totalScore += generalCertMatches.length * 1;
-            console.log('找到一般证书:', generalCertMatches);
+            totalScore += limitedScore;
+            if (rawScore > limitedScore) {
+                extraScore.certificate = (extraScore.certificate || 0) + (rawScore - limitedScore);
+            }
+            console.log('一般证书得分:', limitedScore, '超出:', rawScore - limitedScore);
         }
         
-        console.log('奖励荣誉最终得分:', totalScore, '详情:', details);
+        console.log('奖励荣誉最终得分:', totalScore, '详情:', details, '超出分:', extraScore);
         
         // 确保总分不超过15分
         return {
             totalScore: Math.min(totalScore, 15),
-            details: details
+            details: details,
+            extraScore: extraScore // 用于专精计算
         };
     }
     
@@ -724,11 +667,14 @@ class ResumeScorer {
         return sections.filter(section => text.includes(section)).length >= 3;
     }
     
+    // 修正专精检测，使用新的超出分数
     detectSpecialization(analysis) {
         const specializations = [];
         const skills = analysis.skills;
         const experience = analysis.experience;
+        const achievements = analysis.achievements;
         
+        // 技能专精保持不变
         if (skills.programming && skills.programming.length >= 5) {
             specializations.push({
                 type: 'programming',
@@ -779,37 +725,65 @@ class ResumeScorer {
             });
         }
         
-        if (experience.internshipScore > 15) {
-            const extraCount = Math.floor((experience.internshipScore - 15) / 3);
-            specializations.push({
-                type: 'internship',
-                category: 'experience',
-                level: Math.floor(experience.internshipScore / 3),
-                bonus: Math.min(extraCount, 5),
-                description: `实习专精 (${Math.floor(experience.internshipScore / 3)}次实习经历)`
-            });
+      // 实践专精 - 使用新的超出分数逻辑
+        if (experience.internshipExtraScore > 0) {
+            const bonus = Math.min(Math.floor(experience.internshipExtraScore / 3), 5);
+            if (bonus > 0) {
+                specializations.push({
+                    type: 'internship',
+                    category: 'experience',
+                    level: experience.internshipCount,
+                    bonus: bonus,
+                    description: `实习专精 (${experience.internshipCount}次实习经历)`
+                });
+            }
         }
         
-        if (experience.projectScore > 15) {
-            const extraCount = Math.floor((experience.projectScore - 15) / 3);
-            specializations.push({
-                type: 'project',
-                category: 'experience',
-                level: Math.floor(experience.projectScore / 3),
-                bonus: Math.min(extraCount, 5),
-                description: `项目专精 (${Math.floor(experience.projectScore / 3)}个项目经验)`
-            });
+        if (experience.projectExtraScore > 0) {
+            const bonus = Math.min(Math.floor(experience.projectExtraScore / 3), 5);
+            if (bonus > 0) {
+                specializations.push({
+                    type: 'project',
+                    category: 'experience',
+                    level: experience.projectCount,
+                    bonus: bonus,
+                    description: `项目专精 (${experience.projectCount}个项目经验)`
+                });
+            }
         }
         
-        if (experience.academicScore > 15) {
-            const extraPapers = Math.floor((experience.academicScore - 15) / 3);
-            specializations.push({
-                type: 'academic',
-                category: 'experience',
-                level: this.countPapers(analysis.originalText),
-                bonus: Math.min(extraPapers, 5),
-                description: `学术专精 (${this.countPapers(analysis.originalText)}篇学术成果)`
+        if (experience.academicExtraScore > 0) {
+            const bonus = Math.min(Math.floor(experience.academicExtraScore / 3), 5);
+            if (bonus > 0) {
+                specializations.push({
+                    type: 'academic',
+                    category: 'experience',
+                    level: this.countPapers(analysis.originalText),
+                    bonus: bonus,
+                    description: `学术专精 (${this.countPapers(analysis.originalText)}篇学术成果)`
+                });
+            }
+        }
+        
+        // 奖励荣誉专精 - 使用超出分数
+        if (achievements.extraScore) {
+            let totalExtraScore = 0;
+            Object.values(achievements.extraScore).forEach(score => {
+                totalExtraScore += score;
             });
+            
+            if (totalExtraScore > 0) {
+                const bonus = Math.min(Math.floor(totalExtraScore / 3), 5);
+                if (bonus > 0) {
+                    specializations.push({
+                        type: 'achievement',
+                        category: 'achievement',
+                        level: totalExtraScore,
+                        bonus: bonus,
+                        description: `荣誉专精 (超出基础分${totalExtraScore}分)`
+                    });
+                }
+            }
         }
         
         return specializations;
@@ -914,7 +888,7 @@ class ResumeScorer {
         return 'bachelor';
     }
     
-    // 修正学校分数计算
+    // 在 ResumeScorer 类中修正 calculateSchoolScore 方法
     calculateSchoolScore(text, degrees) {
         if (degrees.length === 0) {
             return this.getBasicSchoolScore(text);
@@ -922,7 +896,9 @@ class ResumeScorer {
         
         // 如果只有一个学位
         if (degrees.length === 1) {
-            return Math.min(this.getSchoolRankScore(degrees[0].school), 15);
+            const score = this.getSchoolRankScore(degrees[0].school);
+            console.log('单学位学校分数:', degrees[0].school, '得分:', score);
+            return Math.min(score, 15);
         }
         
         // 多个学位：第一学历50% + 最高学历50%
@@ -941,12 +917,13 @@ class ResumeScorer {
         console.log('第一学历:', firstDegree.school, '分数:', firstScore);
         console.log('最高学历:', highestDegree.school, '分数:', highestScore);
         
-        // 50%+50%加权
+        // 50%+50%加权 - 如果是同一学校，结果应该一样
         const finalScore = Math.round(firstScore * 0.5 + highestScore * 0.5);
-        console.log('最终学校分数:', finalScore);
+        console.log('加权后学校分数:', finalScore);
         
         return Math.min(finalScore, 15);
     }
+
     
     getSchoolRankScore(schoolName) {
         if (!schoolName) return 2;
@@ -1167,13 +1144,14 @@ class ResumeScorer {
         };
     }
     
+    // 修正评分详情 - 更新满分显示
     scoreExperienceDetailed(analysis) {
         const exp = analysis.experience;
         
         const details = {
-            internship: Math.round(exp.internshipScore),
-            project: Math.round(exp.projectScore),
-            academic: Math.round(exp.academicScore)
+            internship: Math.round(exp.internshipScore), // 限制在10分内
+            project: Math.round(exp.projectScore),       // 限制在10分内
+            academic: Math.round(exp.academicScore)      // 限制在10分内
         };
         
         const total = Math.min(
@@ -1181,25 +1159,35 @@ class ResumeScorer {
             this.maxScores.experience
         );
         
+        console.log('实践经验详细评分:', details, '总分:', total);
+        
         return {
             total: total,
             details: details,
-            maxScores: { internship: 15, project: 15, academic: 15 }
+            maxScores: { internship: 10, project: 10, academic: 10 } // 修正满分显示
         };
     }
     
-    // 修正奖励荣誉评分 - 添加调试信息
+    // 修正奖励荣誉评分详情
     scoreAchievementsDetailed(analysis) {
         const ach = analysis.achievements;
         
         console.log('Achievements Debug Info:');
         console.log('Achievement Details:', ach.details);
         console.log('Total Achievement Score:', ach.totalScore);
+        console.log('Extra Score:', ach.extraScore);
         
         return {
             total: ach.totalScore,
             details: ach.details,
-            maxScore: this.maxScores.achievements
+            maxScore: this.maxScores.achievements,
+            // 为每个细项设置满分5分
+            subMaxScores: {
+                leadership: 5,
+                honor: 5,
+                competition: 5,
+                certificate: 5
+            }
         };
     }
     

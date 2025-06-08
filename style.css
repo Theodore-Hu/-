@@ -355,7 +355,8 @@ header p {
     justify-content: space-between;
     width: 100%;
     min-height: 60px;
-    gap: 12px;
+    gap: 16px; /* 增加间距 */
+    flex-wrap: nowrap; /* 防止换行 */
 }
 
 .category-name {
@@ -366,24 +367,26 @@ header p {
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
-    max-width: 240px;
+    max-width: 220px; /* 减少宽度给右侧更多空间 */
     flex-shrink: 0;
 }
 
 .score-right-section {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px; /* 增加间距 */
     flex: 1;
     justify-content: flex-end;
     min-width: 0;
+    flex-shrink: 0; /* 防止压缩 */
 }
 
 .progress-container {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    min-width: 160px;
+    min-width: 180px; /* 增加最小宽度 */
+    max-width: 200px; /* 限制最大宽度 */
     flex-shrink: 0;
 }
 
@@ -395,7 +398,8 @@ header p {
 }
 
 .progress-bar {
-    width: 160px;
+    width: 100%; /* 使用容器的100%宽度 */
+    min-width: 180px; /* 确保最小宽度 */
     height: 12px;
     background: #e2e8f0;
     border-radius: 6px;
@@ -403,60 +407,14 @@ header p {
     overflow: visible;
 }
 
-.progress-fill {
-    height: 100%;
-    border-radius: 6px;
-    position: absolute;
-    top: 0;
-    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.base-progress {
-    background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
-    z-index: 1;
-}
-
-.bonus-progress {
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    z-index: 2;
-    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
-    transition-delay: 0.5s;
-}
-
 .progress-legend {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 0.75em;
-    justify-content: center;
+    justify-content: flex-start; /* 左对齐 */
     white-space: nowrap;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    font-weight: 500;
-    flex-shrink: 0;
-}
-
-.legend-color {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
-.legend-color.base {
-    background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
-}
-
-.legend-color.bonus {
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-}
-
-.legend-max {
-    color: #a0aec0;
-    font-weight: normal;
+    flex-wrap: nowrap; /* 防止换行 */
 }
 
 .category-score-container {
@@ -464,8 +422,10 @@ header p {
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    min-width: 50px;
+    min-width: 60px; /* 增加最小宽度 */
+    max-width: 80px;
     flex-shrink: 0;
+    margin-left: 8px; /* 添加左边距 */
 }
 
 .main-category-score {
@@ -473,6 +433,8 @@ header p {
     color: #667eea;
     font-size: 1.2em;
     line-height: 1;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .score-composition-mini {
@@ -482,14 +444,9 @@ header p {
     align-items: center;
     gap: 1px;
     white-space: nowrap;
+    justify-content: center;
 }
 
-.score-composition-mini .plus {
-    color: #667eea;
-    font-weight: 600;
-}
-
-/* 展开按钮 */
 .toggle-detail {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -504,8 +461,10 @@ header p {
     align-items: center;
     gap: 4px;
     min-width: 70px;
+    max-width: 80px;
     justify-content: center;
     flex-shrink: 0;
+    margin-left: 8px; /* 添加左边距 */
 }
 
 .toggle-detail:hover {
@@ -559,7 +518,7 @@ header p {
     color: #9b2c2c;
 }
 
-/* 专精标识 */
+/* 专精标识优化 */
 .specialization-badge {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -571,6 +530,19 @@ header p {
     box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
     animation: glow 2s ease-in-out infinite alternate;
     white-space: nowrap;
+    flex-shrink: 0; /* 防止压缩 */
+}
+
+.score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    border-radius: 12px;
+    font-size: 0.75em; /* 稍微减小字体 */
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0; /* 防止压缩 */
 }
 
 @keyframes glow {
@@ -1686,8 +1658,33 @@ textarea:focus {
         align-items: flex-start;
     }
     
+    /* 优化进度条图例 */
     .legend-item {
-        font-size: 0.8em;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-weight: 500;
+        flex-shrink: 0;
+        min-width: fit-content;
+    }
+    
+    .legend-color {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    .legend-max {
+        color: #a0aec0;
+        font-weight: normal;
+        margin-left: 4px;
+    }
+    
+    /* 确保图例不会太长 */
+    .progress-legend {
+        max-width: 100%;
+        overflow: hidden;
     }
     
     .score-composition-mini {

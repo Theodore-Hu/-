@@ -223,96 +223,188 @@ class ResumeScorer {
         return sections.filter(section => text.includes(section)).length >= 3;
     }
     
-    // 计算各项得分
+    // 在 ResumeScorer 类中替换 calculateScores 方法
     calculateScores(analysis) {
         return {
-            basicInfo: this.scoreBasicInfo(analysis),
-            education: this.scoreEducation(analysis),
-            skills: this.scoreSkills(analysis),
-            experience: this.scoreExperience(analysis),
-            achievements: this.scoreAchievements(analysis)
+            basicInfo: this.scoreBasicInfoDetailed(analysis),
+            education: this.scoreEducationDetailed(analysis),
+            skills: this.scoreSkillsDetailed(analysis),
+            experience: this.scoreExperienceDetailed(analysis),
+            achievements: this.scoreAchievementsDetailed(analysis)
         };
     }
     
-    // 基本信息评分
-    scoreBasicInfo(analysis) {
-        let score = 0;
-        if (analysis.hasName) score += 3;
-        if (analysis.hasPhone) score += 3;
-        if (analysis.hasEmail) score += 3;
-        if (analysis.hasAddress) score += 1;
-        return Math.min(score, this.maxScores.basicInfo);
+    // 添加以下详细评分方法
+    
+    // 基本信息详细评分
+    scoreBasicInfoDetailed(analysis) {
+        const details = {};
+        let total = 0;
+        
+        // 姓名
+        details.name = analysis.hasName ? 3 : 0;
+        total += details.name;
+        
+        // 手机号
+        details.phone = analysis.hasPhone ? 3 : 0;
+        total += details.phone;
+        
+        // 邮箱
+        details.email = analysis.hasEmail ? 3 : 0;
+        total += details.email;
+        
+        // 地址/求职意向
+        details.location = analysis.hasAddress ? 1 : 0;
+        total += details.location;
+        
+        return {
+            total: Math.min(total, this.maxScores.basicInfo),
+            details: details,
+            maxScores: {
+                name: 3,
+                phone: 3,
+                email: 3,
+                location: 1
+            }
+        };
     }
     
-    // 教育背景评分
-    scoreEducation(analysis) {
-        let score = analysis.education.schoolLevel; // 基础分
+    // 教育背景详细评分
+    scoreEducationDetailed(analysis) {
+        const details = {};
+        let total = 0;
         
-        // GPA加分
-        if (analysis.education.gpa >= 3.8) score += 7;
-        else if (analysis.education.gpa >= 3.5) score += 5;
-        else if (analysis.education.gpa >= 3.0) score += 3;
-        else if (analysis.education.hasGPA) score += 2;
+        // 学校层次
+        details.school = analysis.education.schoolLevel;
+        total += details.school;
+        
+        // 学术表现
+        if (analysis.education.gpa >= 3.8) details.academic = 7;
+        else if (analysis.education.gpa >= 3.5) details.academic = 5;
+        else if (analysis.education.gpa >= 3.0) details.academic = 3;
+        else if (analysis.education.hasGPA) details.academic = 2;
+        else details.academic = 1;
+        total += details.academic;
         
         // 专业相关性
-        if (analysis.education.hasMajor) score += 8;
+        details.major = analysis.education.hasMajor ? 8 : 2;
+        total += details.major;
         
-        return Math.min(score, this.maxScores.education);
+        return {
+            total: Math.min(total, this.maxScores.education),
+            details: details,
+            maxScores: {
+                school: 15,
+                academic: 7,
+                major: 8
+            }
+        };
     }
     
-    // 技能评分
-    scoreSkills(analysis) {
-        let score = 0;
+    // 技能详细评分
+    scoreSkillsDetailed(analysis) {
+        const details = {};
+        let total = 0;
         const skills = analysis.skills;
         
-        // 技术技能
-        if (skills.programming.length > 0) {
-            score += Math.min(skills.programming.length * 2, 10);
-        }
+        // 编程技能
+        details.programming = Math.min(skills.programming.length * 2, 10);
+        total += details.programming;
         
-        // 其他技能
-        score += Math.min(skills.design.length * 1.5, 6);
-        score += Math.min(skills.data.length * 1.5, 6);
-        score += Math.min(skills.business.length * 1, 4);
+        // 设计技能
+        details.design = Math.min(skills.design.length * 1.5, 6);
+        total += details.design;
+        
+        // 数据分析技能
+        details.data = Math.min(skills.data.length * 1.5, 6);
+        total += details.data;
+        
+        // 商务技能
+        details.business = Math.min(skills.business.length * 1, 4);
+        total += details.business;
         
         // 语言技能
-        if (skills.language.length > 0) {
-            score += Math.min(skills.language.length * 1, 3);
-        }
+        details.language = Math.min(skills.language.length * 1, 3);
+        total += details.language;
         
-        return Math.min(score, this.maxScores.skills);
+        return {
+            total: Math.min(total, this.maxScores.skills),
+            details: details,
+            maxScores: {
+                programming: 10,
+                design: 6,
+                data: 6,
+                business: 4,
+                language: 3
+            }
+        };
     }
     
-    // 经验评分
-    scoreExperience(analysis) {
-        let score = 0;
+    // 经验详细评分
+    scoreExperienceDetailed(analysis) {
+        const details = {};
+        let total = 0;
         const exp = analysis.experience;
         
         // 实习经验
-        score += Math.min(exp.internshipCount * 5, 15);
+        details.internship = Math.min(exp.internshipCount * 5, 15);
+        total += details.internship;
         
         // 项目经验
-        score += Math.min(exp.projectCount * 3, 10);
+        details.project = Math.min(exp.projectCount * 3, 10);
+        total += details.project;
         
-        // 质量加分
-        if (exp.hasCompanyName) score += 2;
-        if (exp.hasDuration) score += 1;
-        if (exp.hasAchievement) score += 2;
+        // 经验质量
+        let quality = 0;
+        if (exp.hasCompanyName) quality += 2;
+        if (exp.hasDuration) quality += 1;
+        if (exp.hasAchievement) quality += 2;
+        details.quality = quality;
+        total += details.quality;
         
-        return Math.min(score, this.maxScores.experience);
+        return {
+            total: Math.min(total, this.maxScores.experience),
+            details: details,
+            maxScores: {
+                internship: 15,
+                project: 10,
+                quality: 5
+            }
+        };
     }
     
-    // 成就评分
-    scoreAchievements(analysis) {
-        let score = 0;
+    // 成就详细评分
+    scoreAchievementsDetailed(analysis) {
+        const details = {};
+        let total = 0;
         const ach = analysis.achievements;
         
-        score += Math.min(ach.scholarshipCount * 2, 4);
-        score += Math.min(ach.competitionCount * 2, 4);
-        score += Math.min(ach.certificateCount * 1, 2);
-        if (ach.hasLeadership) score += 2;
+        // 奖学金
+        details.scholarship = Math.min(ach.scholarshipCount * 2, 4);
+        total += details.scholarship;
         
-        return Math.min(score, this.maxScores.achievements);
+        // 竞赛获奖
+        details.competition = Math.min(ach.competitionCount * 2, 4);
+        total += details.competition;
+        
+        // 证书认证
+        details.certificate = Math.min(ach.certificateCount * 1, 2);
+        total += details.certificate;
+        
+        // 领导力
+        details.leadership = ach.hasLeadership ? 2 : 0;
+        total += details.leadership;
+        
+        return {
+            total: Math.min(total, this.maxScores.achievements),
+            details: details,
+            maxScores: {
+                scholarship: 4,
+                competition: 4,
+                certificate: 2,
+                leadership: 2
+            }
+        };
     }
     
     // 生成建议

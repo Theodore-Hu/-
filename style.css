@@ -1766,3 +1766,43 @@ textarea:focus {
     font-weight: 700;
     text-shadow: 0 1px 3px rgba(102, 126, 234, 0.3);
 }
+
+/* 专精详情样式优化 */
+.boost-detail {
+    color: #718096;
+    font-size: 0.85em;
+    font-weight: normal;
+    margin-left: 4px;
+}
+
+.spec-boost {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+}
+
+.spec-boost:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.boost-label {
+    font-weight: 500;
+    color: #4a5568;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.boost-value {
+    font-weight: 700;
+    color: #667eea;
+    font-size: 1.1em;
+    text-shadow: 0 1px 2px rgba(102, 126, 234, 0.2);
+}

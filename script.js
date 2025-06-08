@@ -720,6 +720,10 @@ class ResumeScoreApp {
             if (category === 'basicInfo') {
                 score = scoreData.details[key] ? 2 : 0;
                 maxScore = 2;
+            } else if (category === 'achievements') {
+                // 奖励荣誉特殊处理
+                score = scoreData.details[key] || 0;
+                maxScore = scoreData.subMaxScores?.[key] || 5; // 默认5分
             } else {
                 score = scoreData.details[key] || 0;
                 if (category === 'education') {

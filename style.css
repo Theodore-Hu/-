@@ -348,15 +348,14 @@ header p {
     border-color: #667eea;
 }
 
-/* 修复重叠问题的关键样式 */
+/* 主评分行 - 修复版 */
 .main-score-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
     min-height: 60px;
-    gap: 16px; /* 增加间距 */
-    flex-wrap: nowrap; /* 防止换行 */
+    gap: 20px;
 }
 
 .category-name {
@@ -367,26 +366,24 @@ header p {
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
-    max-width: 220px; /* 减少宽度给右侧更多空间 */
+    max-width: 240px;
     flex-shrink: 0;
 }
 
 .score-right-section {
     display: flex;
     align-items: center;
-    gap: 16px; /* 增加间距 */
+    gap: 20px;
     flex: 1;
     justify-content: flex-end;
     min-width: 0;
-    flex-shrink: 0; /* 防止压缩 */
 }
 
 .progress-container {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    min-width: 180px; /* 增加最小宽度 */
-    max-width: 200px; /* 限制最大宽度 */
+    width: 200px;
     flex-shrink: 0;
 }
 
@@ -398,13 +395,33 @@ header p {
 }
 
 .progress-bar {
-    width: 100%; /* 使用容器的100%宽度 */
-    min-width: 180px; /* 确保最小宽度 */
+    width: 200px;
     height: 12px;
     background: #e2e8f0;
     border-radius: 6px;
     position: relative;
-    overflow: visible;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.base-progress {
+    background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
+    z-index: 1;
+}
+
+.bonus-progress {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    z-index: 2;
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+    transition-delay: 0.5s;
 }
 
 .progress-legend {
@@ -412,9 +429,35 @@ header p {
     align-items: center;
     gap: 8px;
     font-size: 0.75em;
-    justify-content: flex-start; /* 左对齐 */
+    justify-content: flex-start;
     white-space: nowrap;
-    flex-wrap: nowrap; /* 防止换行 */
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.legend-color {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.legend-color.base {
+    background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
+}
+
+.legend-color.bonus {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.legend-max {
+    color: #a0aec0;
+    font-weight: normal;
 }
 
 .category-score-container {
@@ -422,10 +465,8 @@ header p {
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    min-width: 60px; /* 增加最小宽度 */
-    max-width: 80px;
+    min-width: 60px;
     flex-shrink: 0;
-    margin-left: 8px; /* 添加左边距 */
 }
 
 .main-category-score {
@@ -433,8 +474,6 @@ header p {
     color: #667eea;
     font-size: 1.2em;
     line-height: 1;
-    text-align: center;
-    white-space: nowrap;
 }
 
 .score-composition-mini {
@@ -444,9 +483,14 @@ header p {
     align-items: center;
     gap: 1px;
     white-space: nowrap;
-    justify-content: center;
 }
 
+.score-composition-mini .plus {
+    color: #667eea;
+    font-weight: 600;
+}
+
+/* 展开按钮 */
 .toggle-detail {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -461,10 +505,8 @@ header p {
     align-items: center;
     gap: 4px;
     min-width: 70px;
-    max-width: 80px;
     justify-content: center;
     flex-shrink: 0;
-    margin-left: 8px; /* 添加左边距 */
 }
 
 .toggle-detail:hover {
@@ -518,7 +560,7 @@ header p {
     color: #9b2c2c;
 }
 
-/* 专精标识优化 */
+/* 专精标识 */
 .specialization-badge {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -530,19 +572,6 @@ header p {
     box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
     animation: glow 2s ease-in-out infinite alternate;
     white-space: nowrap;
-    flex-shrink: 0; /* 防止压缩 */
-}
-
-.score-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 6px;
-    border-radius: 12px;
-    font-size: 0.75em; /* 稍微减小字体 */
-    font-weight: 600;
-    white-space: nowrap;
-    flex-shrink: 0; /* 防止压缩 */
 }
 
 @keyframes glow {
@@ -611,6 +640,12 @@ header p {
 .subcategory-item.has-specialization {
     border-left: 3px solid #667eea;
     background: linear-gradient(90deg, #f8faff 0%, #ffffff 100%);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.subcategory-item.has-specialization:hover {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    transform: translateY(-1px);
 }
 
 .subcategory-info {
@@ -654,6 +689,11 @@ header p {
     transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.subcategory-item.has-specialization .subcategory-progress-fill {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+}
+
 .subcategory-score {
     font-weight: 600;
     color: #667eea;
@@ -662,10 +702,26 @@ header p {
     text-align: right;
 }
 
+.subcategory-score.excellent {
+    color: #667eea !important;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(102, 126, 234, 0.3);
+}
+
 .subcategory-score small {
     color: #667eea;
     font-weight: 600;
     margin-left: 2px;
+}
+
+.extra-score-indicator {
+    color: #667eea !important;
+    font-weight: 700 !important;
+    margin-left: 2px;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-size: 0.8em;
 }
 
 .sub-spec-badge {
@@ -716,10 +772,16 @@ header p {
     justify-content: space-between;
     align-items: center;
     background: white;
-    padding: 8px 12px;
+    padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid #cbd5e0;
-    margin-bottom: 4px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+}
+
+.spec-boost:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 .spec-total-boost {
@@ -737,16 +799,27 @@ header p {
 .boost-label {
     font-weight: 500;
     color: #4a5568;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .spec-total-boost .boost-label {
     color: white;
 }
 
+.boost-detail {
+    color: #718096;
+    font-size: 0.85em;
+    font-weight: normal;
+    margin-left: 4px;
+}
+
 .boost-value {
     font-weight: 700;
     color: #667eea;
     font-size: 1.1em;
+    text-shadow: 0 1px 2px rgba(102, 126, 234, 0.2);
 }
 
 .spec-total-boost .boost-value {
@@ -1379,35 +1452,36 @@ textarea:focus {
 }
 
 /* 响应式设计 */
-@media (max-width: 1024px) {
-    .main-score-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-        min-height: auto;
-    }
-    
-    .category-name {
-        max-width: none;
-        justify-content: center;
-    }
-    
-    .score-right-section {
-        justify-content: space-between;
-        gap: 10px;
-    }
-    
+@media (max-width: 1200px) {
     .progress-container {
-        min-width: 140px;
+        width: 180px;
     }
     
     .progress-bar {
-        width: 140px;
+        width: 180px;
     }
     
-    .progress-legend {
-        font-size: 0.7em;
-        gap: 6px;
+    .score-right-section {
+        gap: 16px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .progress-container {
+        width: 160px;
+    }
+    
+    .progress-bar {
+        width: 160px;
+    }
+    
+    .score-right-section {
+        gap: 15px;
+    }
+    
+    .category-name {
+        max-width: 200px;
+        font-size: 1em;
     }
 }
 
@@ -1435,6 +1509,7 @@ textarea:focus {
         flex-direction: column;
         align-items: stretch;
         gap: 16px;
+        min-height: auto;
     }
     
     .score-right-section {
@@ -1447,12 +1522,11 @@ textarea:focus {
     .progress-container {
         order: 1;
         width: 100%;
-        min-width: auto;
     }
     
     .progress-bar {
         width: 100%;
-        min-width: 120px;
+        min-width: 200px;
     }
     
     .category-score-container {
@@ -1503,6 +1577,7 @@ textarea:focus {
         flex-wrap: wrap;
         gap: 6px;
         justify-content: center;
+        max-width: none;
     }
     
     .specialization-badge {
@@ -1658,33 +1733,8 @@ textarea:focus {
         align-items: flex-start;
     }
     
-    /* 优化进度条图例 */
     .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 3px;
-        font-weight: 500;
-        flex-shrink: 0;
-        min-width: fit-content;
-    }
-    
-    .legend-color {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-    
-    .legend-max {
-        color: #a0aec0;
-        font-weight: normal;
-        margin-left: 4px;
-    }
-    
-    /* 确保图例不会太长 */
-    .progress-legend {
-        max-width: 100%;
-        overflow: hidden;
+        font-size: 0.8em;
     }
     
     .score-composition-mini {
@@ -1726,80 +1776,4 @@ textarea:focus {
     .result-section {
         display: block !important;
     }
-}
-
-/* 超出分数指示器样式 */
-.extra-score-indicator {
-    color: #667eea !important;
-    font-weight: 700 !important;
-    margin-left: 2px;
-    background: rgba(102, 126, 234, 0.1);
-    padding: 1px 3px;
-    border-radius: 3px;
-    font-size: 0.8em;
-}
-
-/* 有专精加成的子项目样式增强 */
-.subcategory-item.has-specialization {
-    border-left: 3px solid #667eea;
-    background: linear-gradient(90deg, #f8faff 0%, #ffffff 100%);
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-}
-
-.subcategory-item.has-specialization:hover {
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-    transform: translateY(-1px);
-}
-
-/* 专精进度条满格效果 */
-.subcategory-item.has-specialization .subcategory-progress-fill {
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
-}
-
-/* 专精分数显示 */
-.subcategory-score.excellent {
-    color: #667eea !important;
-    font-weight: 700;
-    text-shadow: 0 1px 3px rgba(102, 126, 234, 0.3);
-}
-
-/* 专精详情样式优化 */
-.boost-detail {
-    color: #718096;
-    font-size: 0.85em;
-    font-weight: normal;
-    margin-left: 4px;
-}
-
-.spec-boost {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: white;
-    padding: 10px 14px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    margin-bottom: 6px;
-    transition: all 0.2s ease;
-}
-
-.spec-boost:hover {
-    border-color: #667eea;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-}
-
-.boost-label {
-    font-weight: 500;
-    color: #4a5568;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.boost-value {
-    font-weight: 700;
-    color: #667eea;
-    font-size: 1.1em;
-    text-shadow: 0 1px 2px rgba(102, 126, 234, 0.2);
 }

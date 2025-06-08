@@ -164,6 +164,11 @@ function displayResults(result) {
     
     // 更新建议
     updateSuggestions(result.suggestions);
+    
+    // 启动动画
+    setTimeout(() => {
+        animateScoreItems();
+    }, 500);
 }
 
 // 更新总分显示
@@ -258,29 +263,32 @@ function getScoreColor(score) {
     return '#e53e3e';
 }
 
-// 更新详细评分
+// 更新详细评分显示
 function updateDetailedScores(categoryScores) {
     const container = document.getElementById('scoreCategories');
     const categoryInfo = {
         basicInfo: {
             name: '📋 基本信息',
+            icon: '📋',
             subcategories: {
-                name: '姓名',
-                phone: '手机号',
-                email: '邮箱',
-                location: '地址/意向'
+                name: '姓名信息',
+                phone: '联系电话',
+                email: '电子邮箱',
+                location: '地址意向'
             }
         },
         education: {
             name: '🎓 教育背景',
+            icon: '🎓',
             subcategories: {
                 school: '学校层次',
                 academic: '学术表现',
-                major: '专业相关性'
+                major: '专业匹配'
             }
         },
         skills: {
             name: '💻 专业技能',
+            icon: '💻',
             subcategories: {
                 programming: '编程开发',
                 design: '设计创作',
@@ -291,6 +299,7 @@ function updateDetailedScores(categoryScores) {
         },
         experience: {
             name: '💼 实践经验',
+            icon: '💼',
             subcategories: {
                 internship: '实习经历',
                 project: '项目经验',
@@ -299,23 +308,25 @@ function updateDetailedScores(categoryScores) {
         },
         achievements: {
             name: '🏆 奖励荣誉',
+            icon: '🏆',
             subcategories: {
                 scholarship: '奖学金',
                 competition: '竞赛获奖',
                 certificate: '证书认证',
-                leadership: '领导力'
+                leadership: '领导经历'
             }
         }
     };
     
     container.innerHTML = '';
     
-    Object.entries(categoryScores).forEach(([category, scoreData]) => {
+    Object.entries(categoryScores).forEach(([category, scoreData], index) => {
         const categoryName = categoryInfo[category].name;
         const subcategories = categoryInfo[category].subcategories;
         
         const item = document.createElement('div');
         item.className = 'score-item';
+        item.style.animationDelay = `${index * 0.1}s`;
         
         // 主要得分显示
         const mainScore = scoreData.total || scoreData;
@@ -324,21 +335,31 @@ function updateDetailedScores(categoryScores) {
             getMaxScore(category);
         const percentage = (mainScore / maxScore) * 100;
         
+        // 获取分数等级
+        const scoreLevel = getScoreGrade(mainScore, maxScore);
+        
         item.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div class="category-name">${categoryName}</div>
-                <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="main-score-row">
+                <div class="category-name">
+                    ${categoryName}
+                    <span class="score-badge ${scoreLevel.class}" data-tooltip="${scoreLevel.tooltip}">
+                        ${scoreLevel.text}
+                    </span>
+                </div>
+                <div class="score-right-section">
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${percentage}%"></div>
+                        <div class="progress-fill" style="width: 0%" data-target="${percentage}"></div>
                     </div>
-                    <div class="category-score">${mainScore}/${maxScore}分</div>
+                    <div class="category-score ${scoreLevel.scoreClass}">
+                        ${mainScore}/${maxScore}
+                    </div>
                     <button class="toggle-detail collapsed" onclick="toggleCategoryDetail('${category}')">
                         详情
                     </button>
                 </div>
             </div>
             <div class="category-detail" id="detail-${category}" style="display: none;">
-                <h4>详细评分</h4>
+                <h4>详细评分breakdown</h4>
                 <div class="subcategory-list">
                     ${generateSubcategoryHTML(scoreData, subcategories)}
                 </div>
@@ -346,13 +367,24 @@ function updateDetailedScores(categoryScores) {
         `;
         
         container.appendChild(item);
+        
+        // 延迟启动进度条动画
+        setTimeout(() => {
+            const progressFill = item.querySelector('.progress-fill');
+            const targetWidth = progressFill.getAttribute('data-target');
+            progressFill.style.width = targetWidth + '%';
+        }, 200 + index * 100);
     });
 }
 
-// 生成子项HTML
+// 生成子项HTML - 优化版
 function generateSubcategoryHTML(scoreData, subcategories) {
     if (!scoreData.details) {
-        return '<p style="color: #999; font-style: italic;">暂无详细数据</p>';
+        return `
+            <div class="empty-subcategory">
+                暂无详细评分数据
+            </div>
+        `;
     }
     
     let html = '';
@@ -360,14 +392,19 @@ function generateSubcategoryHTML(scoreData, subcategories) {
         const score = scoreData.details[key] || 0;
         const maxScore = scoreData.maxScores[key] || 1;
         const percentage = (score / maxScore) * 100;
+        const subGrade = getScoreGrade(score, maxScore);
         
         html += `
             <div class="subcategory-item">
-                <span class="subcategory-name">${name}</span>
+                <span class="subcategory-name tooltip" data-tooltip="满分${maxScore}分">
+                    ${name}
+                </span>
                 <div class="subcategory-progress">
-                    <div class="subcategory-progress-fill" style="width: ${percentage}%"></div>
+                    <div class="subcategory-progress-fill" style="width: 0%" data-target="${percentage}"></div>
                 </div>
-                <span class="subcategory-score">${score}/${maxScore}</span>
+                <span class="subcategory-score ${subGrade.scoreClass}">
+                    ${score}/${maxScore}
+                </span>
             </div>
         `;
     });
@@ -375,7 +412,42 @@ function generateSubcategoryHTML(scoreData, subcategories) {
     return html;
 }
 
-// 切换详情显示
+// 获取分数等级
+function getScoreGrade(score, maxScore) {
+    const percentage = (score / maxScore) * 100;
+    
+    if (percentage >= 85) {
+        return {
+            class: 'excellent',
+            text: '优秀',
+            scoreClass: 'score-excellent',
+            tooltip: '表现优异，继续保持！'
+        };
+    } else if (percentage >= 70) {
+        return {
+            class: 'good',
+            text: '良好',
+            scoreClass: 'score-good',
+            tooltip: '表现不错，还有提升空间'
+        };
+    } else if (percentage >= 50) {
+        return {
+            class: 'average',
+            text: '一般',
+            scoreClass: 'score-average',
+            tooltip: '需要重点改进'
+        };
+    } else {
+        return {
+            class: 'average',
+            text: '待提升',
+            scoreClass: 'score-poor',
+            tooltip: '建议优先完善此项'
+        };
+    }
+}
+
+// 切换详情显示 - 优化版
 function toggleCategoryDetail(category) {
     const detailDiv = document.getElementById(`detail-${category}`);
     const button = document.querySelector(`button[onclick="toggleCategoryDetail('${category}')"]`);
@@ -384,23 +456,40 @@ function toggleCategoryDetail(category) {
         detailDiv.style.display = 'block';
         button.classList.remove('collapsed');
         button.classList.add('expanded');
+        button.textContent = '收起';
+        
+        // 启动子项进度条动画
+        setTimeout(() => {
+            const subProgressBars = detailDiv.querySelectorAll('.subcategory-progress-fill');
+            subProgressBars.forEach((bar, index) => {
+                setTimeout(() => {
+                    const targetWidth = bar.getAttribute('data-target');
+                    bar.style.width = targetWidth + '%';
+                }, index * 100);
+            });
+        }, 100);
+        
     } else {
         detailDiv.style.display = 'none';
         button.classList.remove('expanded');
         button.classList.add('collapsed');
+        button.textContent = '详情';
     }
 }
 
-// 获取最大分数（兼容旧版本）
-function getMaxScore(category) {
-    const maxScores = {
-        basicInfo: 10,
-        education: 30,
-        skills: 25,
-        experience: 25,
-        achievements: 10
-    };
-    return maxScores[category] || 10;
+// 添加进入动画
+function animateScoreItems() {
+    const scoreItems = document.querySelectorAll('.score-item');
+    scoreItems.forEach((item, index) => {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            item.style.transition = 'all 0.5s ease';
+            item.style.opacity = '1';
+            item.style.transform = 'translateY(0)';
+        }, index * 150);
+    });
 }
 
 // 更新岗位推荐
@@ -492,6 +581,18 @@ function showError(message) {
     alert('❌ ' + message);
 }
 
+// 获取最大分数（兼容旧版本）
+function getMaxScore(category) {
+    const maxScores = {
+        basicInfo: 10,
+        education: 30,
+        skills: 25,
+        experience: 25,
+        achievements: 10
+    };
+    return maxScores[category] || 10;
+}
+
 // 导出功能（可选）
 function exportResults() {
     if (!currentAnalysis) {
@@ -530,7 +631,8 @@ function generateReport(analysis) {
         achievements: '奖励荣誉'
     };
     
-    Object.entries(analysis.categoryScores).forEach(([category, score]) => {
+    Object.entries(analysis.categoryScores).forEach(([category, scoreData]) => {
+        const score = typeof scoreData === 'object' ? scoreData.total : scoreData;
         report += `- ${categoryNames[category]}: ${score}分\n`;
     });
     

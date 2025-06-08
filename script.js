@@ -589,10 +589,22 @@ class ResumeScoreApp {
                 categorySpecializations = specializations.filter(spec => spec.category === 'skill');
                 specializationBonus = categorySpecializations.reduce((sum, spec) => sum + spec.bonus, 0);
             } else if (category === 'experience') {
-                categorySpecializations = specializations.filter(spec => spec.category === 'experience');
+                // 修复：正确筛选实践经验的专精
+                categorySpecializations = specializations.filter(spec => 
+                    spec.category === 'experience' || 
+                    spec.type === 'internship' || 
+                    spec.type === 'project' || 
+                    spec.type === 'academic'
+                );
                 specializationBonus = categorySpecializations.reduce((sum, spec) => sum + spec.bonus, 0);
+                
+                // 调试日志
+                console.log('实践经验专精检测:');
+                console.log('所有专精:', specializations);
+                console.log('筛选出的经验专精:', categorySpecializations);
+                console.log('专精加成:', specializationBonus);
+                
             } else if (category === 'achievements') {
-                // 奖励荣誉专精处理
                 categorySpecializations = specializations.filter(spec => spec.category === 'achievement');
                 specializationBonus = categorySpecializations.reduce((sum, spec) => sum + spec.bonus, 0);
             }

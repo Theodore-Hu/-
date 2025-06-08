@@ -338,35 +338,40 @@ class ResumeScorer {
         return education;
     }
     
-    // 修正学历层次计算 - 单学位不加分，多学位才加分
+    // 修正学历层次计算 - 博士5分，硕士3分，本科1分，多学位加分
     calculateDegreeScore(degrees) {
-        let score = 0;
+        if (degrees.length === 0) return 0;
+        
+        // 统计各学位数量和最高学历分数
+        let maxDegreeScore = 0;
         const degreeCount = {};
         
         degrees.forEach(degree => {
             if (degree.degree === 'phd') {
-                score += 3;  // 博士3分
+                maxDegreeScore = Math.max(maxDegreeScore, 5);  // 博士5分
                 degreeCount.phd = (degreeCount.phd || 0) + 1;
             } else if (degree.degree === 'master') {
-                score += 2;  // 硕士2分
+                maxDegreeScore = Math.max(maxDegreeScore, 3);  // 硕士3分
                 degreeCount.master = (degreeCount.master || 0) + 1;
             } else if (degree.degree === 'bachelor') {
-                score += 1;  // 本科1分
+                maxDegreeScore = Math.max(maxDegreeScore, 1);  // 本科1分
                 degreeCount.bachelor = (degreeCount.bachelor || 0) + 1;
             }
         });
         
-        // 多学位加分：只有当总学位数 > 1 时才加分
+        // 多学位加分：总学位数大于1时，每多一个+1分
         const totalDegrees = Object.values(degreeCount).reduce((sum, count) => sum + count, 0);
+        let multiDegreeBonus = 0;
         if (totalDegrees > 1) {
-            // 每多一个学位+1分（总数-1）
-            score += (totalDegrees - 1) * 1;
-            console.log('多学位加分:', (totalDegrees - 1), '总学位数:', totalDegrees);
+            multiDegreeBonus = (totalDegrees - 1) * 1;  // 每多一个学位+1分
+            console.log('多学位加分:', multiDegreeBonus, '总学位数:', totalDegrees);
         }
         
-        console.log('学历层次最终得分:', score, '(限制在5分内)');
+        const finalScore = maxDegreeScore + multiDegreeBonus;
+        console.log('学历层次得分:', maxDegreeScore, '+', multiDegreeBonus, '=', finalScore, '(限制在5分内)');
+        
         // 确保最高5分
-        return Math.min(score, 5);
+        return Math.min(finalScore, 5);
     }
     
     analyzeSkills(text) {
@@ -561,6 +566,7 @@ class ResumeScorer {
         totalScore += leadershipScore;
         
         // 奖学金和荣誉计分 - 每类限制在5分内
+        // 在荣誉计分部分，添加默认校级荣誉识别
         const honorCategories = {
             national: { patterns: [/(国家.{0,10}奖学金|国家.{0,10}励志奖学金)/gi], score: 4 },
             provincial: { patterns: [/(省.{0,10}奖学金|省级.{0,10}奖学金)/gi], score: 3 },
@@ -568,7 +574,9 @@ class ResumeScorer {
                 patterns: [
                     /(校.{0,10}奖学金|校级.{0,10}奖学金)/gi,
                     /(一等奖学金|二等奖学金|三等奖学金|特等奖学金|优秀学生奖学金|学业奖学金|综合奖学金)/gi,
-                    /(优秀学生|三好学生|优秀毕业生|优秀团员|优秀党员)/gi
+                    /(优秀学生|三好学生|优秀毕业生|优秀团员|优秀党员)/gi,
+                    // 添加默认校级模式：没有明确标注级别的奖励
+                    /(奖学金|荣誉|奖励)(?!.*(国家|省|市|院))/gi
                 ], 
                 score: 2 
             },
@@ -1168,7 +1176,7 @@ class ResumeScorer {
         };
     }
     
-    // 修正奖励荣誉评分详情
+    // 修正奖励荣誉评分详情 - 细项满分10分
     scoreAchievementsDetailed(analysis) {
         const ach = analysis.achievements;
         
@@ -1177,11 +1185,43 @@ class ResumeScorer {
         console.log('Total Achievement Score:', ach.totalScore);
         console.log('Extra Score:', ach.extraScore);
         
+        // 计算各细项实际得分
+        const details = {};
+        
+        // 学生干部得分计算
+        let leadershipScore = 0;
+        if (ach.details.chairman) leadershipScore += ach.details.chairman * 3;
+        if (ach.details.minister) leadershipScore += ach.details.minister * 2;
+        if (ach.details.member) leadershipScore += ach.details.member * 1;
+        details.leadership = Math.min(leadershipScore, 10); // 限制在10分内
+        
+        // 荣誉奖励得分计算
+        let honorScore = 0;
+        if (ach.details.nationalHonor) honorScore += ach.details.nationalHonor * 4;
+        if (ach.details.provincialHonor) honorScore += ach.details.provincialHonor * 3;
+        if (ach.details.schoolHonor) honorScore += ach.details.schoolHonor * 2;
+        if (ach.details.collegeHonor) honorScore += ach.details.collegeHonor * 1;
+        details.honor = Math.min(honorScore, 10); // 限制在10分内
+        
+        // 竞赛获奖得分计算
+        let competitionScore = 0;
+        if (ach.details.internationalComp) competitionScore += ach.details.internationalComp * 4;
+        if (ach.details.nationalComp) competitionScore += ach.details.nationalComp * 3;
+        if (ach.details.provincialComp) competitionScore += ach.details.provincialComp * 2;
+        if (ach.details.schoolComp) competitionScore += ach.details.schoolComp * 1;
+        details.competition = Math.min(competitionScore, 10); // 限制在10分内
+        
+        // 证书认证得分计算
+        let certificateScore = 0;
+        if (ach.details.advancedCert) certificateScore += ach.details.advancedCert * 2;
+        if (ach.details.generalCert) certificateScore += ach.details.generalCert * 1;
+        details.certificate = Math.min(certificateScore, 10); // 限制在10分内
+        
         return {
             total: ach.totalScore,
-            details: ach.details,
+            details: details,
             maxScore: this.maxScores.achievements,
-            // 为每个细项设置满分5分
+            // 修正：每个细项满分10分
             subMaxScores: {
                 leadership: 5,
                 honor: 5,

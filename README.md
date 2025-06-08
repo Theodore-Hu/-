@@ -41,13 +41,13 @@
 ## 🚀 快速开始
 
 ### 在线使用
-直接访问：[https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes)
+直接访问：(https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes-)
 
 ### 本地部署
 
 1. **克隆项目**
 ```bash
-git clone https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes.git
+git clone https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes-.git
 cd Score-for-Chinese-Fresh-Graduate-Resumes
 ```
 
@@ -63,7 +63,7 @@ npx http-server
 ```
 
 3. **访问应用**
-打开浏览器访问：`https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes`
+打开浏览器访问：`https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes-`
 
 ### 使用说明
 
@@ -198,8 +198,8 @@ resume-scorer/
 ## 📞 联系我们
 
 - 📧 Email: HuYunt1999@163.com
-- 🐛 Issues: [GitHub Issues](https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes-/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/Theodore-Hu/Score-for-Chinese-Fresh-Graduate-Resumes-/discussions)
 
 ---
 

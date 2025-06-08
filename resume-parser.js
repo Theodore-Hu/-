@@ -64,58 +64,59 @@ class ResumeScorer {
             achievements: 10
         };
         
-        // 学校分级体系（保持新版的完整分级）
+        // 学校分级体系 - 确保分数严格控制
         this.schoolRanks = {
-            // 顶尖大学（15分）
+            // 顶尖大学（15分）- 仅清华北大
             topTier: [
-                '清华大学', '北京大学', '清华', '北大',
+                '清华大学', '北京大学', '清华', '北大'
             ],
             
-            // 一流大学A类（13分）
+            // 顶尖985（13分）
             tier1A: [
                 '复旦大学', '上海交通大学', '浙江大学', '中国科学技术大学', '南京大学',
                 '西安交通大学', '哈尔滨工业大学', '中国人民大学', '北京理工大学', '北京航空航天大学',
                 '东南大学', '华中科技大学', '中山大学', '天津大学', '同济大学',
                 '北京师范大学', '南开大学', '西北工业大学', '华东师范大学',
-                '南方科技大学', '西湖大学', '上海科技大学', '深圳大学', '苏州大学',
                 '中国科学院大学', '国科大', '中科院大学', '复旦', '交大', '浙大', '中科大', '南大'
             ],
             
-            // 一流大学B类（11分）
+            // 普通985 + 顶尖211（11分）
             tier1B: [
                 '中南大学', '电子科技大学', '重庆大学', '大连理工大学', '吉林大学',
                 '厦门大学', '山东大学', '华南理工大学', '中国农业大学', '国防科技大学',
                 '中央民族大学', '兰州大学', '东北大学', '湖南大学', '中国海洋大学', '西北农林科技大学',
                 '北京邮电大学', '华东理工大学', '西安电子科技大学', '北京科技大学',
                 '中南财经政法大学', '上海财经大学', '对外经济贸易大学', '西南财经大学',
-                '中央财经大学', '华中师范大学', '华南师范大学', '陕西师范大学',
-                '华中农业大学', '南京农业大学', '中国药科大学', '北京中医药大学',
-                '中国传媒大学', '北京外国语大学', '上海外国语大学'
+                '中央财经大学', '华中师范大学', '华南师范大学', '陕西师范大学'
             ],
             
-            // 一流学科大学（9分）
+            // 普通211（9分）
             tier2: [
                 '北京交通大学', '北京工业大学', '北京化工大学', '中国石油大学', '中国地质大学',
                 '中国矿业大学', '河海大学', '江南大学', '南京理工大学', '南京航空航天大学',
                 '安徽大学', '合肥工业大学', '福州大学', '南昌大学', '郑州大学',
                 '湖南师范大学', '暨南大学', '广西大学', '海南大学', '四川大学',
                 '西南交通大学', '贵州大学', '云南大学', '西北大学', '长安大学',
-                '青海大学', '宁夏大学', '新疆大学', '石河子大学', '延边大学',
-                '内蒙古大学', '辽宁大学', '大连海事大学', '东北师范大学', '哈尔滨工程大学',
-                '东北农业大学', '东北林业大学', '上海大学'
+                '华中农业大学', '南京农业大学', '中国药科大学', '北京中医药大学',
+                '中国传媒大学', '北京外国语大学', '上海外国语大学'
             ],
             
-            // 优质本科（6分）
+            // 双一流学科建设（7分）
             tier3: [
+                '南方科技大学', '西湖大学', '上海科技大学', '深圳大学', '苏州大学',
                 '杭州电子科技大学', '宁波大学', '江苏科技大学', '南京信息工程大学',
                 '浙江理工大学', '温州医科大学', '广东工业大学', '汕头大学',
-                '华东政法大学', '上海理工大学', '首都医科大学', '重庆邮电大学',
+                '华东政法大学', '上海理工大学', '首都医科大学', '重庆邮电大学'
+            ],
+            
+            // 省属重点（5分）
+            tier4: [
                 '西安建筑科技大学', '长沙理工大学', '湘潭大学', '扬州大学',
                 '江西理工大学', '河北工业大学', '天津师范大学', '山西大学'
             ]
         };
         
-        // 技能关键词库（确保包含所有类别）
+        // 技能关键词库
         this.skillKeywords = {
             programming: [
                 'Java', 'Python', 'JavaScript', 'C++', 'C#', 'Go', 'Rust', 'Swift', 'Kotlin',
@@ -160,7 +161,7 @@ class ResumeScorer {
         };
     }
     
-    // 检测专精类型（修复 engineering 检测问题）
+    // 检测专精类型
     detectSpecialization(analysis) {
         const specializations = [];
         const skills = analysis.skills;
@@ -189,7 +190,6 @@ class ResumeScorer {
             });
         }
         
-        // 修复：确保 engineering 存在
         if (skills.engineering && skills.engineering.length >= 3) {
             specializations.push({
                 type: 'engineering',
@@ -224,22 +224,32 @@ class ResumeScorer {
     // 主评分函数
     scoreResume(text) {
         const analysis = this.analyzeResume(text);
-        const scores = this.calculateScores(analysis);
+        const baseScores = this.calculateScores(analysis);
         
-        // 检测专精并应用加成
+        // 检测专精
         const specializations = this.detectSpecialization(analysis);
-        const enhancedScores = this.applySpecializationBonus(scores, specializations);
+        const enhancedScores = this.applySpecializationBonus(baseScores, specializations);
         
         const suggestions = this.generateSuggestions(enhancedScores, analysis);
         const jobRecommendations = this.recommendJobs(analysis, specializations);
         
-        const totalScore = Object.values(enhancedScores).reduce((sum, scoreObj) => {
+        // 计算基础总分
+        const baseTotalScore = Object.values(baseScores).reduce((sum, scoreObj) => {
             return sum + (typeof scoreObj === 'object' ? scoreObj.total : scoreObj);
         }, 0);
         
+        // 计算专精加成分
+        const specializationBonus = specializations.reduce((sum, spec) => sum + spec.bonus, 0);
+        
+        // 最终总分
+        const finalTotalScore = baseTotalScore + specializationBonus;
+        
         return {
-            totalScore: Math.min(Math.round(totalScore), 100),
+            baseScore: Math.min(Math.round(baseTotalScore), 100),
+            specializationBonus: specializationBonus,
+            totalScore: Math.round(finalTotalScore),
             categoryScores: enhancedScores,
+            baseScores: baseScores,
             analysis: analysis,
             specializations: specializations,
             suggestions: suggestions,
@@ -378,7 +388,8 @@ class ResumeScorer {
             ...this.schoolRanks.tier1A,
             ...this.schoolRanks.tier1B,
             ...this.schoolRanks.tier2,
-            ...this.schoolRanks.tier3
+            ...this.schoolRanks.tier3,
+            ...this.schoolRanks.tier4
         ];
         
         for (let school of allSchools) {
@@ -402,12 +413,13 @@ class ResumeScorer {
         return 'bachelor';
     }
     
-    // 修复：新的学校评分系统
+    // 修正：学校评分系统 - 严格按照第一学历50% + 最高学历50%
     calculateSchoolScore(text, degrees) {
         if (degrees.length === 0) {
             return this.getBasicSchoolScore(text);
         }
         
+        // 按学历层次排序，本科在前（第一学历）
         const sortedDegrees = degrees.sort((a, b) => {
             const order = { 'associate': 1, 'bachelor': 2, 'master': 3, 'phd': 4 };
             return (order[a.degree] || 0) - (order[b.degree] || 0);
@@ -416,32 +428,25 @@ class ResumeScorer {
         let finalScore = 0;
         
         if (sortedDegrees.length === 1) {
+            // 只有一个学历，不进行权重分配
             const degree = sortedDegrees[0];
             finalScore = this.getSchoolRankScore(degree.school);
-            
-            if (degree.degree === 'phd') finalScore += 2;
-            else if (degree.degree === 'master') finalScore += 1;
-            
         } else {
-            const firstDegree = sortedDegrees[0];
-            const highestDegree = sortedDegrees[sortedDegrees.length - 1];
+            // 多个学历：严格按照第一学历50% + 最高学历50%
+            const firstDegree = sortedDegrees[0]; // 第一学历（通常是本科）
+            const highestDegree = sortedDegrees[sortedDegrees.length - 1]; // 最高学历
             
             const firstScore = this.getSchoolRankScore(firstDegree.school);
             const highestScore = this.getSchoolRankScore(highestDegree.school);
             
-            const baseScore = firstScore * 0.5 + highestScore * 0.5;
-            
-            let degreeBonus = 0;
-            if (highestDegree.degree === 'phd') degreeBonus = 3;
-            else if (highestDegree.degree === 'master') degreeBonus = 2;
-            
-            finalScore = Math.round(baseScore + degreeBonus);
+            // 严格50%权重分配，不额外加学历层次分
+            finalScore = Math.round(firstScore * 0.5 + highestScore * 0.5);
         }
         
-        return Math.min(finalScore, 15);
+        return Math.min(finalScore, 15); // 确保不超过15分（清北上限）
     }
     
-    // 修复：学校排名评分，适配新的分级体系
+    // 修正：学校排名评分 - 严格控制分数上限
     getSchoolRankScore(schoolName) {
         if (!schoolName) return 2;
         
@@ -451,7 +456,7 @@ class ResumeScorer {
             .replace(/科技$/, '')
             .replace(/理工$/, '');
         
-        // 顶尖大学 (15分)
+        // 顶尖大学 (15分) - 仅清华北大
         if (this.schoolRanks.topTier.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
@@ -459,7 +464,7 @@ class ResumeScorer {
             return 15;
         }
         
-        // 一流大学A类 (13分)
+        // 顶尖985 (13分)
         if (this.schoolRanks.tier1A.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
@@ -467,7 +472,7 @@ class ResumeScorer {
             return 13;
         }
         
-        // 一流大学B类 (11分)
+        // 普通985 + 顶尖211 (11分)
         if (this.schoolRanks.tier1B.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
@@ -475,7 +480,7 @@ class ResumeScorer {
             return 11;
         }
         
-        // 一流学科大学 (9分)
+        // 普通211 (9分)
         if (this.schoolRanks.tier2.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
@@ -483,23 +488,31 @@ class ResumeScorer {
             return 9;
         }
         
-        // 优质本科 (6分)
+        // 双一流学科建设 (7分)
         if (this.schoolRanks.tier3.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
         )) {
-            return 6;
+            return 7;
         }
         
-        // 其他识别
+        // 省属重点 (5分)
+        if (this.schoolRanks.tier4.some(school => 
+            this.matchSchoolName(schoolName, school) || 
+            this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
+        )) {
+            return 5;
+        }
+        
+        // 其他大学
         if (/(大学|学院)/i.test(schoolName)) {
-            if (/(985|211|双一流|重点)/i.test(schoolName)) return 8;
-            return 4; // 普通本科
+            if (/(985|211|双一流|重点)/i.test(schoolName)) return 6;
+            return 3; // 普通本科
         }
         
-        if (/(专科|高职)/i.test(schoolName)) return 2;
+        if (/(专科|高职)/i.test(schoolName)) return 1;
         
-        return 3;
+        return 2;
     }
     
     // 学校名称匹配辅助函数
@@ -518,16 +531,18 @@ class ResumeScorer {
     }
     
     getBasicSchoolScore(text) {
-        // 特殊处理一些新兴优秀大学
-        if (/(南方科技|西湖大学|上海科技|深圳大学)/i.test(text)) return 13;
-        
         // 清华北大特殊处理
         if (/(清华|北大)/i.test(text)) return 15;
-        if (/(985|211|双一流|重点)/i.test(text)) return 10;
-        if (/(大学|学院)/i.test(text)) return 6;
-        if (/(专科|高职)/i.test(text)) return 2;
         
-        return 3;
+        // 其他模糊匹配
+        if (/(复旦|交大|浙大|中科大|南大)/i.test(text)) return 13;
+        if (/(985)/i.test(text)) return 11;
+        if (/(211|双一流)/i.test(text)) return 9;
+        if (/(重点大学)/i.test(text)) return 7;
+        if (/(大学|学院)/i.test(text)) return 3;
+        if (/(专科|高职)/i.test(text)) return 1;
+        
+        return 2;
     }
     
     extractGPA(text) {
@@ -541,7 +556,7 @@ class ResumeScorer {
         return 0;
     }
     
-    // 修复：技能识别，确保所有类别都被正确初始化
+    // 技能识别
     analyzeSkills(text) {
         const skills = {
             programming: [],
@@ -550,7 +565,7 @@ class ResumeScorer {
             business: [],
             language: [],
             office: [],
-            engineering: [], // 确保初始化
+            engineering: [],
             total: 0
         };
         
@@ -619,6 +634,7 @@ class ResumeScorer {
         };
     }
     
+    // 修正：基本信息评分 - 确保不超过10分
     scoreBasicInfoDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -636,118 +652,136 @@ class ResumeScorer {
         total += details.location;
         
         return {
-            total: Math.min(total, this.maxScores.basicInfo),
+            total: Math.min(total, this.maxScores.basicInfo), // 严格限制在10分内
             details: details,
             maxScores: { name: 3, phone: 3, email: 3, location: 1 }
         };
     }
     
+    // 修正：教育背景评分 - 确保不超过30分
     scoreEducationDetailed(analysis) {
         const details = {};
         let total = 0;
         
-        details.school = analysis.education.schoolLevel;
+        // 学校层次分数（最高15分）
+        details.school = Math.min(analysis.education.schoolLevel, 15);
         total += details.school;
         
-        if (analysis.education.gpa >= 3.8) details.academic = 7;
-        else if (analysis.education.gpa >= 3.5) details.academic = 5;
-        else if (analysis.education.gpa >= 3.0) details.academic = 3;
+        // 学术表现（最高8分）
+        if (analysis.education.gpa >= 3.8) details.academic = 8;
+        else if (analysis.education.gpa >= 3.5) details.academic = 6;
+        else if (analysis.education.gpa >= 3.0) details.academic = 4;
         else if (analysis.education.hasGPA) details.academic = 2;
         else details.academic = 1;
         total += details.academic;
         
-        details.major = analysis.education.hasMajor ? 8 : 2;
+        // 专业匹配（最高7分）
+        details.major = analysis.education.hasMajor ? 7 : 2;
         total += details.major;
         
         return {
-            total: Math.min(total, this.maxScores.education),
+            total: Math.min(total, this.maxScores.education), // 严格限制在30分内
             details: details,
-            maxScores: { school: 15, academic: 7, major: 8 }
+            maxScores: { school: 15, academic: 8, major: 7 }
         };
     }
     
-    // 修复：技能评分，确保包含工程技能
+    // 修正：技能评分 - 确保不超过25分
     scoreSkillsDetailed(analysis) {
         const details = {};
         let total = 0;
         const skills = analysis.skills;
         
-        details.programming = Math.min(skills.programming.length * 2.5, 8);
+        // 编程技能（最高8分）
+        details.programming = Math.min(skills.programming.length * 1.5, 8);
         total += details.programming;
         
-        details.design = Math.min(skills.design.length * 2, 4);
+        // 设计技能（最高5分）
+        details.design = Math.min(skills.design.length * 1.5, 5);
         total += details.design;
         
-        details.data = Math.min(skills.data.length * 2, 4);
+        // 数据分析（最高5分）
+        details.data = Math.min(skills.data.length * 1.5, 5);
         total += details.data;
         
-        // 确保 engineering 技能被正确评分
-        details.engineering = Math.min((skills.engineering || []).length * 2, 4);
+        // 工程技能（最高4分）
+        details.engineering = Math.min((skills.engineering || []).length * 1.5, 4);
         total += details.engineering;
         
-        details.business = Math.min(skills.business.length * 1.5, 3);
+        // 商务技能（最高2分）
+        details.business = Math.min(skills.business.length * 0.5, 2);
         total += details.business;
         
-        details.language = Math.min(skills.language.length * 1, 2);
+        // 语言能力（最高1分）
+        details.language = Math.min(skills.language.length * 0.3, 1);
         total += details.language;
         
         return {
-            total: Math.min(total, this.maxScores.skills),
+            total: Math.min(total, this.maxScores.skills), // 严格限制在25分内
             details: details,
-            maxScores: { programming: 8, design: 4, data: 4, engineering: 4, business: 3, language: 2 }
+            maxScores: { programming: 8, design: 5, data: 5, engineering: 4, business: 2, language: 1 }
         };
     }
     
+    // 修正：经验评分 - 确保不超过25分
     scoreExperienceDetailed(analysis) {
         const details = {};
         let total = 0;
         const exp = analysis.experience;
         
-        details.internship = Math.min(exp.internshipCount * 6, 15);
+        // 实习经历（最高15分）
+        details.internship = Math.min(exp.internshipCount * 5, 15);
         total += details.internship;
         
-        details.project = Math.min(exp.projectCount * 4, 8);
+        // 项目经验（最高7分）
+        details.project = Math.min(exp.projectCount * 2, 7);
         total += details.project;
         
+        // 经验质量（最高3分）
         let quality = 0;
-        if (exp.hasCompanyName) quality += 2;
+        if (exp.hasCompanyName) quality += 1;
         if (exp.hasDuration) quality += 1;
-        if (exp.hasAchievement) quality += 2;
+        if (exp.hasAchievement) quality += 1;
         details.quality = quality;
         total += details.quality;
         
         return {
-            total: Math.min(total, this.maxScores.experience),
+            total: Math.min(total, this.maxScores.experience), // 严格限制在25分内
             details: details,
-            maxScores: { internship: 15, project: 8, quality: 5 }
+            maxScores: { internship: 15, project: 7, quality: 3 }
         };
     }
     
+    // 修正：成就评分 - 确保不超过10分
     scoreAchievementsDetailed(analysis) {
         const details = {};
         let total = 0;
         const ach = analysis.achievements;
         
-        details.scholarship = Math.min(ach.scholarshipCount * 2.5, 3);
+        // 奖学金（最高3分）
+        details.scholarship = Math.min(ach.scholarshipCount * 1.5, 3);
         total += details.scholarship;
         
-        details.competition = Math.min(ach.competitionCount * 2.5, 3);
+        // 竞赛获奖（最高4分）
+        details.competition = Math.min(ach.competitionCount * 2, 4);
         total += details.competition;
         
-        details.certificate = Math.min(ach.certificateCount * 1.5, 2);
+        // 证书认证（最高2分）
+        details.certificate = Math.min(ach.certificateCount * 0.5, 2);
         total += details.certificate;
         
-        details.leadership = ach.hasLeadership ? 2 : 0;
+        // 领导经历（最高1分）
+        details.leadership = ach.hasLeadership ? 1 : 0;
         total += details.leadership;
         
         return {
-            total: Math.min(total, this.maxScores.achievements),
+            total: Math.min(total, this.maxScores.achievements), // 严格限制在10分内
             details: details,
-            maxScores: { scholarship: 3, competition: 3, certificate: 2, leadership: 2 }
+            maxScores: { scholarship: 3, competition: 4, certificate: 2, leadership: 1 }
         };
     }
     
-    // 岗位推荐（保持完整功能）
+    // 岗位推荐
     recommendJobs(analysis, specializations = []) {
         const jobs = [];
         const skills = analysis.skills;

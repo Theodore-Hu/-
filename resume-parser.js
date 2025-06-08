@@ -161,43 +161,215 @@ class ResumeScorer {
         };
     }
     
-    // 改进学校识别
+    // 在 resume-parser.js 的 ResumeScorer 类中，替换 analyzeEducation 方法
+    
     analyzeEducation(text) {
         const education = {
             schoolLevel: 0,
             hasGPA: /GPA|绩点|平均分|成绩/.test(text),
             gpa: this.extractGPA(text),
             hasMajor: /(专业|学院|系|计算机|软件|电子|机械|经济|金融|管理|文学|理学|工学)/.test(text),
-            isRelevant: false
+            isRelevant: false,
+            degrees: this.extractDegrees(text) // 新增：提取学历信息
         };
         
-        // 学校层次判断 - 改进匹配逻辑
-        const textLower = text.toLowerCase();
+        // 学校层次判断 - 考虑第一学历
+        education.schoolLevel = this.calculateSchoolScore(text, education.degrees);
+        
+        return education;
+    }
+    
+    // 新增：提取学历信息的方法
+    extractDegrees(text) {
+        const degrees = [];
+        
+        // 匹配学历信息的正则模式
+        const patterns = [
+            // 本科：学校名 + 本科/学士
+            /([^。\n]*?大学|[^。\n]*?学院|[^。\n]*?科技|[^。\n]*?理工)[^。\n]*?(本科|学士|bachelor)/gi,
+            // 研究生：学校名 + 研究生/硕士/博士
+            /([^。\n]*?大学|[^。\n]*?学院|[^。\n]*?科技|[^。\n]*?理工)[^。\n]*?(研究生|硕士|博士|master|phd|doctor)/gi,
+            // 通用格式：时间 + 学校 + 学历
+            /(20\d{2}[年\-\.]*20\d{2}|20\d{2}[年\-\.]*).*?([^。\n]*?大学|[^。\n]*?学院)[^。\n]*?(本科|研究生|硕士|博士)/gi
+        ];
+        
+        patterns.forEach(pattern => {
+            let match;
+            const regex = new RegExp(pattern.source, pattern.flags);
+            while ((match = regex.exec(text)) !== null) {
+                degrees.push({
+                    school: this.cleanSchoolName(match[1] || match[2]),
+                    degree: this.getDegreeLevel(match[2] || match[3]),
+                    text: match[0]
+                });
+            }
+        });
+        
+        // 如果没有明确的学历信息，尝试从整体文本推断
+        if (degrees.length === 0) {
+            const schoolMatch = this.findSchoolInText(text);
+            if (schoolMatch) {
+                degrees.push({
+                    school: schoolMatch,
+                    degree: this.inferDegreeLevel(text),
+                    text: schoolMatch
+                });
+            }
+        }
+        
+        return degrees;
+    }
+    
+    // 清理学校名称
+    cleanSchoolName(schoolText) {
+        if (!schoolText) return '';
+        return schoolText
+            .replace(/(大学|学院|科技|理工).*/, '$1')
+            .replace(/^\s*/, '')
+            .trim();
+    }
+    
+    // 获取学历层次
+    getDegreeLevel(degreeText) {
+        if (/(博士|phd|doctor)/i.test(degreeText)) return 'phd';
+        if (/(硕士|研究生|master)/i.test(degreeText)) return 'master';
+        if (/(本科|学士|bachelor)/i.test(degreeText)) return 'bachelor';
+        return 'unknown';
+    }
+    
+    // 从文本中查找学校
+    findSchoolInText(text) {
+        const allSchools = [
+            ...this.schoolRanks.top2,
+            ...this.schoolRanks.top985,
+            ...this.schoolRanks.c211
+        ];
+        
+        for (let school of allSchools) {
+            if (text.includes(school) || text.includes(school.replace('大学', '')) || text.includes(school.replace('学院', ''))) {
+                return school;
+            }
+        }
+        
+        // 查找其他大学
+        const universityMatch = text.match(/([^。\n]*?大学|[^。\n]*?学院)/);
+        return universityMatch ? universityMatch[1] : null;
+    }
+    
+    // 推断学历层次
+    inferDegreeLevel(text) {
+        if (/(博士|phd|doctor)/i.test(text)) return 'phd';
+        if (/(硕士|研究生|master|graduate)/i.test(text)) return 'master';
+        if (/(专科|大专|高职)/i.test(text)) return 'associate';
+        return 'bachelor'; // 默认本科
+    }
+    
+    // 计算学校得分 - 考虑第一学历
+    calculateSchoolScore(text, degrees) {
+        if (degrees.length === 0) {
+            // 没有明确学历信息，使用原来的逻辑
+            return this.getBasicSchoolScore(text);
+        }
+        
+        // 按学历层次排序，本科在前（第一学历）
+        const sortedDegrees = degrees.sort((a, b) => {
+            const order = { 'associate': 1, 'bachelor': 2, 'master': 3, 'phd': 4 };
+            return (order[a.degree] || 0) - (order[b.degree] || 0);
+        });
+        
+        let finalScore = 0;
+        
+        if (sortedDegrees.length === 1) {
+            // 只有一个学历
+            const degree = sortedDegrees[0];
+            finalScore = this.getSchoolRankScore(degree.school);
+            
+            // 学历层次加分
+            if (degree.degree === 'phd') finalScore += 2;
+            else if (degree.degree === 'master') finalScore += 1;
+            
+        } else {
+            // 多个学历：第一学历 + 最高学历
+            const firstDegree = sortedDegrees[0]; // 第一学历（本科）
+            const highestDegree = sortedDegrees[sortedDegrees.length - 1]; // 最高学历
+            
+            const firstScore = this.getSchoolRankScore(firstDegree.school);
+            const highestScore = this.getSchoolRankScore(highestDegree.school);
+            
+            // 计算公式：第一学历权重50% + 最高学历权重50%
+            const baseScore = firstScore * 0.5 + highestScore * 0.5;
+            
+            // 学历层次加分
+            let degreeBonus = 0;
+            if (highestDegree.degree === 'phd') degreeBonus = 3;
+            else if (highestDegree.degree === 'master') degreeBonus = 2;
+            
+            finalScore = Math.round(baseScore + degreeBonus);
+        }
+        
+        return Math.min(finalScore, 15); // 确保不超过15分
+    }
+    
+    // 获取学校排名得分
+    getSchoolRankScore(schoolName) {
+        if (!schoolName) return 2;
+        
+        if (this.schoolRanks.top2.some(school => 
+            schoolName.includes(school) || school.includes(schoolName.replace('大学', '').replace('学院', ''))
+        )) {
+            return 15;
+        }
+        
+        if (this.schoolRanks.top985.some(school => 
+            schoolName.includes(school) || school.includes(schoolName.replace('大学', '').replace('学院', '')) ||
+            schoolName.replace('大学', '').replace('学院', '').includes(school.replace('大学', '').replace('学院', ''))
+        )) {
+            return 12;
+        }
+        
+        if (this.schoolRanks.c211.some(school => 
+            schoolName.includes(school) || school.includes(schoolName.replace('大学', '').replace('学院', '')) ||
+            schoolName.replace('大学', '').replace('学院', '').includes(school.replace('大学', '').replace('学院', ''))
+        )) {
+            return 8;
+        }
+        
+        // 其他大学
+        if (/(大学|学院)/i.test(schoolName)) {
+            if (/(985|211|双一流|重点)/i.test(schoolName)) return 10;
+            return 4; // 普通本科
+        }
+        
+        if (/(专科|高职)/i.test(schoolName)) return 2;
+        
+        return 3; // 默认分数
+    }
+    
+    // 保留原来的基础评分逻辑作为备用
+    getBasicSchoolScore(text) {
         if (this.schoolRanks.top2.some(school => text.includes(school))) {
-            education.schoolLevel = 15;
+            return 15;
         } else if (this.schoolRanks.top985.some(school => 
             text.includes(school) || text.includes(school.replace('大学', '')) || text.includes(school.replace('学院', ''))
         )) {
-            education.schoolLevel = 12;
+            return 12;
         } else if (this.schoolRanks.c211.some(school => 
             text.includes(school) || text.includes(school.replace('大学', '')) || text.includes(school.replace('学院', ''))
         )) {
-            education.schoolLevel = 8;
+            return 8;
         } else if (/(大学|学院|college|university)/i.test(text)) {
             if (/(985|211|双一流|重点)/i.test(text)) {
-                education.schoolLevel = 10;
+                return 10;
             } else if (/(本科|学士|bachelor)/i.test(text)) {
-                education.schoolLevel = 4;
+                return 4;
             } else {
-                education.schoolLevel = 6; // 默认本科
+                return 6;
             }
         } else if (/(专科|高职|college)/i.test(text)) {
-            education.schoolLevel = 2;
+            return 2;
         } else {
-            education.schoolLevel = 3; // 有教育信息但不明确
+            return 3;
         }
-        
-        return education;
     }
     
     // 改进技能识别

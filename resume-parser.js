@@ -1,3 +1,8 @@
+// 配置 PDF.js worker
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
 // 简历解析器
 class ResumeParser {
     static async parsePDF(file) {
@@ -7,7 +12,8 @@ class ResumeParser {
             }
             
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            const loadingTask = pdfjsLib.getDocument(arrayBuffer);
+            const pdf = await loadingTask.promise;
             let fullText = '';
             
             for (let i = 1; i <= pdf.numPages; i++) {
@@ -17,12 +23,13 @@ class ResumeParser {
                 fullText += pageText + '\n';
             }
             
-            return fullText;
+            return fullText.trim();
         } catch (error) {
             console.error('PDF解析错误:', error);
-            throw new Error('PDF解析失败: ' + error.message);
+            throw new Error('PDF解析失败，请确保文件没有密码保护：' + error.message);
         }
     }
+}
     
     static async parseWord(file) {
         try {

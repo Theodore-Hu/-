@@ -46,7 +46,7 @@ class ResumeParser {
     }
 }
 
-// 替换整个 ResumeScorer 类
+// 简历评分器
 class ResumeScorer {
     constructor() {
         this.maxScores = {
@@ -161,8 +161,16 @@ class ResumeScorer {
         };
     }
     
-    // 在 resume-parser.js 的 ResumeScorer 类中，替换 analyzeEducation 方法
+    hasName(text) {
+        const namePatterns = [
+            /姓名[：:]\s*([^\s\n]{2,4})/,
+            /^([^\s\n]{2,4})$/m,
+            /(个人简历|简历)/
+        ];
+        return namePatterns.some(pattern => pattern.test(text)) || text.length > 50;
+    }
     
+    // 改进教育背景分析 - 考虑第一学历
     analyzeEducation(text) {
         const education = {
             schoolLevel: 0,
@@ -170,7 +178,7 @@ class ResumeScorer {
             gpa: this.extractGPA(text),
             hasMajor: /(专业|学院|系|计算机|软件|电子|机械|经济|金融|管理|文学|理学|工学)/.test(text),
             isRelevant: false,
-            degrees: this.extractDegrees(text) // 新增：提取学历信息
+            degrees: this.extractDegrees(text)
         };
         
         // 学校层次判断 - 考虑第一学历
@@ -264,7 +272,7 @@ class ResumeScorer {
         return 'bachelor'; // 默认本科
     }
     
-    // 计算学校得分 - 考虑第一学历
+    // 计算学校得分 - 考虑第一学历（50% + 50%权重）
     calculateSchoolScore(text, degrees) {
         if (degrees.length === 0) {
             // 没有明确学历信息，使用原来的逻辑
@@ -289,7 +297,7 @@ class ResumeScorer {
             else if (degree.degree === 'master') finalScore += 1;
             
         } else {
-            // 多个学历：第一学历 + 最高学历
+            // 多个学历：第一学历 + 最高学历（各50%）
             const firstDegree = sortedDegrees[0]; // 第一学历（本科）
             const highestDegree = sortedDegrees[sortedDegrees.length - 1]; // 最高学历
             
@@ -372,6 +380,17 @@ class ResumeScorer {
         }
     }
     
+    extractGPA(text) {
+        const gpaMatch = text.match(/GPA[：:\s]*([0-9.]+)/i) || 
+                        text.match(/绩点[：:\s]*([0-9.]+)/) ||
+                        text.match(/平均分[：:\s]*([0-9.]+)/);
+        if (gpaMatch) {
+            const gpa = parseFloat(gpaMatch[1]);
+            return gpa > 5 ? gpa / 25 : gpa; // 处理百分制转换为4分制
+        }
+        return 0;
+    }
+    
     // 改进技能识别
     analyzeSkills(text) {
         const skills = {
@@ -415,27 +434,6 @@ class ResumeScorer {
         return cleanText.includes(cleanKeyword) || cleanKeyword.includes(cleanText);
     }
     
-    // 其他方法保持不变...
-    hasName(text) {
-        const namePatterns = [
-            /姓名[：:]\s*([^\s\n]{2,4})/,
-            /^([^\s\n]{2,4})$/m,
-            /(个人简历|简历)/
-        ];
-        return namePatterns.some(pattern => pattern.test(text)) || text.length > 50;
-    }
-    
-    extractGPA(text) {
-        const gpaMatch = text.match(/GPA[：:\s]*([0-9.]+)/i) || 
-                        text.match(/绩点[：:\s]*([0-9.]+)/) ||
-                        text.match(/平均分[：:\s]*([0-9.]+)/);
-        if (gpaMatch) {
-            const gpa = parseFloat(gpaMatch[1]);
-            return gpa > 5 ? gpa / 25 : gpa; // 处理百分制转换为4分制
-        }
-        return 0;
-    }
-    
     analyzeExperience(text) {
         return {
             internshipCount: Math.max((text.match(/实习|intern/gi) || []).length, 
@@ -462,7 +460,7 @@ class ResumeScorer {
         return sections.filter(section => text.includes(section)).length >= 3;
     }
     
-    // 保持详细评分方法不变
+    // 计算各项评分
     calculateScores(analysis) {
         return {
             basicInfo: this.scoreBasicInfoDetailed(analysis),
@@ -473,6 +471,7 @@ class ResumeScorer {
         };
     }
     
+    // 基本信息详细评分
     scoreBasicInfoDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -496,6 +495,7 @@ class ResumeScorer {
         };
     }
     
+    // 教育背景详细评分
     scoreEducationDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -520,6 +520,7 @@ class ResumeScorer {
         };
     }
     
+    // 技能详细评分
     scoreSkillsDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -548,6 +549,7 @@ class ResumeScorer {
         };
     }
     
+    // 经验详细评分
     scoreExperienceDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -573,6 +575,7 @@ class ResumeScorer {
         };
     }
     
+    // 成就详细评分
     scoreAchievementsDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -597,7 +600,7 @@ class ResumeScorer {
         };
     }
     
-    // 其他方法（建议生成、岗位推荐等）保持不变...
+    // 生成建议
     generateSuggestions(scores, analysis) {
         const suggestions = [];
         
@@ -640,6 +643,7 @@ class ResumeScorer {
         return suggestions;
     }
     
+    // 岗位推荐
     recommendJobs(analysis) {
         const jobs = [];
         const skills = analysis.skills;

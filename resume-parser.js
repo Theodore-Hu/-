@@ -1,8 +1,11 @@
 // 简历解析器
 class ResumeParser {
-    // PDF解析
     static async parsePDF(file) {
         try {
+            if (typeof pdfjsLib === 'undefined') {
+                throw new Error('PDF.js库未加载，请刷新页面重试');
+            }
+            
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
             let fullText = '';
@@ -16,22 +19,26 @@ class ResumeParser {
             
             return fullText;
         } catch (error) {
+            console.error('PDF解析错误:', error);
             throw new Error('PDF解析失败: ' + error.message);
         }
     }
     
-    // Word文档解析
     static async parseWord(file) {
         try {
+            if (typeof mammoth === 'undefined') {
+                throw new Error('Word解析库未加载，请刷新页面重试');
+            }
+            
             const arrayBuffer = await file.arrayBuffer();
             const result = await mammoth.extractRawText({ arrayBuffer });
             return result.value;
         } catch (error) {
+            console.error('Word解析错误:', error);
             throw new Error('Word文档解析失败: ' + error.message);
         }
     }
     
-    // 统一解析入口
     static async parseFile(file) {
         const fileType = file.type;
         const fileName = file.name.toLowerCase();

@@ -440,11 +440,17 @@ class ResumeScoreApp {
     
     // 支持超过100分的等级系统
     getScoreLevel(score) {
-        if (score >= 120) {
+        if (score >= 130) {
+            return {
+                text: '传奇',
+                color: '#9c27b0',
+                summary: '全能型专精人才，简历质量卓越超群！'
+            };
+        } else if (score >= 120) {
             return {
                 text: '卓越',
                 color: '#9f7aea',
-                summary: '专精突出，简历质量超群！'
+                summary: '多项专精突出，简历质量超群！'
             };
         } else if (score >= 110) {
             return {
@@ -458,25 +464,25 @@ class ResumeScoreApp {
                 color: '#5a67d8',
                 summary: '开始展现专精特质，发展潜力大！'
             };
-        } else if (score >= 90) {
+        } else if (score >= 85) {
             return {
                 text: '优秀',
                 color: '#48bb78',
                 summary: '简历质量很高，可以冲击知名企业！'
             };
-        } else if (score >= 80) {
+        } else if (score >= 70) {
             return {
                 text: '良好',
                 color: '#38a169',
                 summary: '简历整体不错，稍作完善就很棒了'
             };
-        } else if (score >= 70) {
+        } else if (score >= 55) {
             return {
                 text: '中等',
                 color: '#ed8936',
                 summary: '简历有一定亮点，还有提升空间'
             };
-        } else if (score >= 60) {
+        } else if (score >= 40) {
             return {
                 text: '及格',
                 color: '#dd6b20',
@@ -521,7 +527,7 @@ class ResumeScoreApp {
                 subcategories: {
                     school: '学校层次',
                     academic: '学业成绩',
-                    degree: '学历层次'  // 修改为学历层次
+                    degree: '学历层次'
                 }
             },
             skills: {
@@ -531,7 +537,7 @@ class ResumeScoreApp {
                     design: '设计创作',
                     data: '数据分析',
                     engineering: '工程技术',
-                    arts: '文体艺术'  // 新增文体艺术
+                    arts: '文体艺术'
                 }
             },
             experience: {
@@ -539,7 +545,7 @@ class ResumeScoreApp {
                 subcategories: {
                     internship: '实习经历',
                     project: '项目经验',
-                    academic: '学术成果'  // 修改为学术成果
+                    academic: '学术成果'
                 }
             },
             achievements: {

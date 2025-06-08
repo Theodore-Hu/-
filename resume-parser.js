@@ -1,11 +1,242 @@
-// 简历评分器 - 修复版
+// 简历解析器 - 优化版
+class ResumeParser {
+    static async parsePDF(file) {
+        try {
+            if (typeof pdfjsLib === 'undefined') {
+                throw new Error('PDF.js库未加载，请刷新页面重试');
+            }
+            
+            // 添加进度回调
+            const progressCallback = (progress) => {
+                const percent = Math.round((progress.loaded / progress.total) * 100);
+                console.log(`PDF解析进度: ${percent}%`);
+            };
+            
+            const arrayBuffer = await file.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({
+                data: arrayBuffer,
+                verbosity: 0, // 减少控制台输出
+                maxImageSize: 1024 * 1024, // 限制图片大小以节省内存
+                disableFontFace: true, // 禁用字体渲染以提高性能
+                useSystemFonts: false
+            });
+            
+            const pdf = await loadingTask.promise;
+            let fullText = '';
+            const maxPages = Math.min(pdf.numPages, 10); // 限制最大页数
+            
+            // 并行处理页面（但限制并发数量）
+            const concurrentLimit = 3;
+            const chunks = [];
+            
+            for (let i = 0; i < maxPages; i += concurrentLimit) {
+                const pagePromises = [];
+                for (let j = i; j < Math.min(i + concurrentLimit, maxPages); j++) {
+                    pagePromises.push(this.extractPageText(pdf, j + 1));
+                }
+                const chunkResults = await Promise.all(pagePromises);
+                chunks.push(...chunkResults);
+            }
+            
+            fullText = chunks.join('\n');
+            
+            // 清理内存
+            await pdf.destroy();
+            
+            return this.cleanText(fullText);
+        } catch (error) {
+            console.error('PDF解析错误:', error);
+            throw new Error('PDF解析失败: ' + error.message);
+        }
+    }
+    
+    static async extractPageText(pdf, pageNum) {
+        try {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            // 改进文本提取，保持格式
+            const textItems = textContent.items.map(item => {
+                // 处理特殊字符和换行
+                let text = item.str;
+                if (item.hasEOL) {
+                    text += '\n';
+                }
+                return text;
+            });
+            
+            const pageText = textItems.join(' ');
+            
+            // 清理页面内存
+            page.cleanup();
+            
+            return pageText;
+        } catch (error) {
+            console.warn(`页面 ${pageNum} 解析失败:`, error);
+            return '';
+        }
+    }
+    
+    static async parseWord(file) {
+        try {
+            if (typeof mammoth === 'undefined') {
+                throw new Error('Word解析库未加载，请刷新页面重试');
+            }
+            
+            const arrayBuffer = await file.arrayBuffer();
+            
+            // 使用更好的提取选项
+            const result = await mammoth.extractRawText({ 
+                arrayBuffer,
+                includeEmbeddedStyleMap: false,
+                includeDefaultStyleMap: false
+            });
+            
+            if (result.messages && result.messages.length > 0) {
+                console.warn('Word解析警告:', result.messages);
+            }
+            
+            return this.cleanText(result.value);
+        } catch (error) {
+            console.error('Word解析错误:', error);
+            throw new Error('Word文档解析失败: ' + error.message);
+        }
+    }
+    
+    // 文本清理和标准化
+    static cleanText(text) {
+        if (!text || typeof text !== 'string') {
+            return '';
+        }
+        
+        return text
+            // 统一换行符
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            // 移除多余空白
+            .replace(/\t/g, ' ')
+            .replace(/ +/g, ' ')
+            // 清理多余换行
+            .replace(/\n\s*\n\s*\n/g, '\n\n')
+            // 移除行首行尾空格
+            .split('\n')
+            .map(line => line.trim())
+            .join('\n')
+            // 移除文档开头和结尾的空白
+            .trim();
+    }
+    
+    static async parseFile(file) {
+        // 添加文件验证
+        if (!file || !file.type || !file.name) {
+            throw new Error('无效的文件');
+        }
+        
+        const fileType = file.type.toLowerCase();
+        const fileName = file.name.toLowerCase();
+        
+        // 检查文件是否损坏
+        if (file.size === 0) {
+            throw new Error('文件为空或损坏');
+        }
+        
+        try {
+            let text = '';
+            
+            if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+                text = await this.parsePDF(file);
+            } else if (fileType.includes('word') || 
+                      fileType.includes('document') ||
+                      fileName.endsWith('.docx') || 
+                      fileName.endsWith('.doc')) {
+                text = await this.parseWord(file);
+            } else {
+                throw new Error('不支持的文件格式。仅支持 PDF (.pdf) 和 Word (.doc, .docx) 格式');
+            }
+            
+            // 验证提取的文本
+            if (!text || text.trim().length < 10) {
+                throw new Error('无法从文件中提取有效内容，请检查文件是否正确或尝试其他格式');
+            }
+            
+            // 检查是否包含有意义的简历内容
+            if (!this.isValidResumeContent(text)) {
+                throw new Error('文件内容不像是简历，请上传正确的简历文件');
+            }
+            
+            return text;
+            
+        } catch (error) {
+            // 更好的错误处理
+            if (error.message.includes('password') || error.message.includes('encrypted')) {
+                throw new Error('文件已加密，请上传未加密的文件');
+            }
+            
+            if (error.message.includes('corrupted') || error.message.includes('invalid')) {
+                throw new Error('文件已损坏，请尝试重新保存后上传');
+            }
+            
+            throw error;
+        }
+    }
+    
+    // 验证是否是有效的简历内容
+    static isValidResumeContent(text) {
+        const resumeKeywords = [
+            // 中文关键词
+            '姓名', '电话', '邮箱', '教育', '经历', '技能', '工作', '实习', 
+            '项目', '学校', '专业', '大学', '学院', '毕业', '求职', '应聘',
+            // 英文关键词
+            'name', 'phone', 'email', 'education', 'experience', 'skills',
+            'work', 'university', 'college', 'graduate', 'internship', 'project'
+        ];
+        
+        const lowerText = text.toLowerCase();
+        const matchCount = resumeKeywords.filter(keyword => 
+            lowerText.includes(keyword.toLowerCase())
+        ).length;
+        
+        // 至少包含3个简历相关关键词
+        return matchCount >= 3;
+    }
+    
+    // 获取文件信息
+    static getFileInfo(file) {
+        return {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            lastModified: new Date(file.lastModified),
+            sizeFormatted: this.formatFileSize(file.size)
+        };
+    }
+    
+    // 格式化文件大小
+    static formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+}
+
+// 导出为全局变量
+window.ResumeParser = ResumeParser;
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { ResumeParser };
+}
+
+// 简历评分器 - 修正版
 class ResumeScorer {
     constructor() {
         this.maxScores = {
             basicInfo: 10,
-            education: 30,
+            education: 25,
             skills: 20,
-            experience: 25,
+            experience: 30,
             achievements: 15
         };
         
@@ -140,31 +371,32 @@ class ResumeScorer {
         return education;
     }
     
-    // 计算学历层次分数
+    // 计算学历层次分数 - 保持原来的算法，允许超分
     calculateDegreeScore(degrees) {
         let score = 0;
         const degreeCount = {};
         
         degrees.forEach(degree => {
             if (degree.degree === 'phd') {
-                score += 5;
+                score += 5;  // 保持原来的5分
                 degreeCount.phd = (degreeCount.phd || 0) + 1;
             } else if (degree.degree === 'master') {
-                score += 3;
+                score += 3;  // 保持原来的3分
                 degreeCount.master = (degreeCount.master || 0) + 1;
             } else if (degree.degree === 'bachelor') {
-                score += 1;
+                score += 1;  // 保持原来的1分
                 degreeCount.bachelor = (degreeCount.bachelor || 0) + 1;
             }
         });
         
-        // 多学位加分
+        // 多学位加分 - 保持原来的算法
         const totalDegrees = Object.values(degreeCount).reduce((sum, count) => sum + count, 0);
         if (totalDegrees > 1) {
-            score += (totalDegrees - 1); // 每多一个学位+1分
+            score += (totalDegrees - 1) * 2; // 每多一个学位+2分
         }
         
-        return Math.min(score, 10);
+        // 不限制上限，允许超分
+        return score;
     }
     
     // 技能识别
@@ -221,7 +453,7 @@ class ResumeScorer {
         const hasCompanyName = /(有限公司|股份|集团|科技|互联网|腾讯|阿里|百度|字节|美团|京东|华为|小米|网易|滴滴|快手)/i.test(text);
         const hasAchievement = /(完成|实现|提升|优化|负责|开发|设计|获得|达到)/i.test(text);
         
-        // 计算各项分数
+        // 保持原来的计算方法
         const internshipScore = Math.min(internshipCount * (hasCompanyName ? 3 : 2.5), 15);
         const projectScore = Math.min(projectCount * (hasAchievement ? 3 : 2.5), 15);
         const academicScore = this.calculateAcademicScore(text);
@@ -684,12 +916,18 @@ class ResumeScorer {
         
         const specializations = this.detectSpecialization(analysis);
         
-        const baseTotalScore = Math.min(
-            Object.values(baseScores).reduce((sum, scoreObj) => {
-                return sum + (typeof scoreObj === 'object' ? scoreObj.total : scoreObj);
-            }, 0),
-            100
-        );
+        // 修正基础分计算，允许教育部分超分
+        let baseTotalScore = 0;
+        Object.entries(baseScores).forEach(([category, scoreObj]) => {
+            const score = typeof scoreObj === 'object' ? scoreObj.total : scoreObj;
+            if (category === 'education') {
+                // 教育部分不限制上限，允许超分
+                baseTotalScore += score;
+            } else {
+                // 其他部分按原来的上限
+                baseTotalScore += Math.min(score, this.maxScores[category]);
+            }
+        });
         
         const specializationBonus = specializations.reduce((sum, spec) => sum + spec.bonus, 0);
         const finalTotalScore = baseTotalScore + specializationBonus;
@@ -732,7 +970,7 @@ class ResumeScorer {
         };
     }
     
-    // 教育背景评分
+    // 教育背景评分 - 允许超分
     scoreEducationDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -751,14 +989,14 @@ class ResumeScorer {
         else details.academic = 0;
         total += details.academic;
         
-        // 学历层次（最高10分）
+        // 学历层次（不限制上限，允许超分）
         details.degree = analysis.education.degreeScore;
         total += details.degree;
         
         return {
-            total: Math.min(total, this.maxScores.education),
+            total: total, // 不限制总分，允许超过25分
             details: details,
-            maxScores: { school: 15, academic: 5, degree: 10 }
+            maxScores: { school: 15, academic: 5, degree: '不限' }
         };
     }
     
@@ -969,7 +1207,7 @@ class ResumeScorer {
             suggestions.push('可以补充文体艺术等综合技能展示');
         }
         
-        if (expScore < 15) {
+        if (expScore < 20) {
             if (analysis.experience.internshipScore < 6) {
                 suggestions.push('寻找更多实习机会，积累实践经验');
             }

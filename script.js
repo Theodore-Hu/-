@@ -735,9 +735,9 @@ class ResumeScoreApp {
             } else if (category === 'achievements') {
                 // 奖励荣誉特殊处理
                 score = scoreData.details[key] || 0;
-                maxScore = scoreData.subMaxScores?.[key] || 5;
+                maxScore = 5; // 修正：所有细项满分都是5分
                 
-                // 检查是否有超出分数 - 修正逻辑
+                // 检查是否有超出分数
                 let hasExtraScore = false;
                 let extraScore = 0;
                 
@@ -776,12 +776,13 @@ class ResumeScoreApp {
                                 </div>
                             </div>
                             <span class="subcategory-score ${hasExtraScore ? 'excellent' : subGrade.scoreClass}">
-                                ${score}${hasExtraScore ? `<small>+${extraScore}</small>` : ''}
+                                ${score}${hasExtraScore ? `<small class="extra-score-indicator">+${extraScore}</small>` : ''}
                             </span>
                         </div>
                     </div>
                 `;
             } else {
+                // 其他类别的处理保持不变
                 score = scoreData.details[key] || 0;
                 if (category === 'education') {
                     const maxScoreMap = {

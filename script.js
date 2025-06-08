@@ -176,7 +176,6 @@ function displayResults(result) {
     }, 500);
 }
 
-// 修正：更新总分显示
 function updateTotalScore(result) {
     const scoreElement = document.getElementById('totalScore');
     const levelElement = document.getElementById('scoreLevel');
@@ -187,72 +186,71 @@ function updateTotalScore(result) {
     const bonus = result.specializationBonus || 0;
     const totalScore = result.totalScore;
     
-    // 创建分数显示元素
-    const scoreDisplay = document.createElement('div');
-    scoreDisplay.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        line-height: 1;
-    `;
+    // 清空现有内容，避免重叠
+    scoreElement.innerHTML = '';
     
     if (bonus > 0) {
-        scoreDisplay.innerHTML = `
-            <div style="font-size: 3em; font-weight: bold; color: #333; margin-bottom: 5px;">
-                ${totalScore}
-            </div>
-            <div style="font-size: 0.8em; color: #667eea; display: flex; align-items: center; gap: 4px;">
-                <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #4a5568;">
-                    基础${baseScore}
-                </span>
-                <span style="color: #a0aec0;">+</span>
-                <span style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 2px 8px; border-radius: 10px;">
-                    专精${bonus}
-                </span>
+        // 有专精加成的显示方式
+        scoreElement.innerHTML = `
+            <div class="score-display-container">
+                <div class="main-score">${totalScore}</div>
+                <div class="score-composition">
+                    <div class="composition-item base">
+                        <span class="composition-label">基础</span>
+                        <span class="composition-value">${baseScore}</span>
+                    </div>
+                    <div class="composition-plus">+</div>
+                    <div class="composition-item bonus">
+                        <span class="composition-label">专精</span>
+                        <span class="composition-value">${bonus}</span>
+                    </div>
+                </div>
             </div>
         `;
     } else {
-        scoreDisplay.innerHTML = `
-            <div style="font-size: 3em; font-weight: bold; color: #333;">
-                ${totalScore}
+        // 无专精加成的简单显示
+        scoreElement.innerHTML = `
+            <div class="score-display-container">
+                <div class="main-score">${totalScore}</div>
             </div>
         `;
     }
     
-    // 清空并添加新的分数显示
-    scoreElement.innerHTML = '';
-    scoreElement.appendChild(scoreDisplay);
-    
     // 设置圆环进度
     const basePercentage = Math.min((baseScore / 100) * 360, 360);
     
+    // 清理之前可能存在的额外元素
+    const existingBonusRing = circleElement.querySelector('.bonus-ring');
+    if (existingBonusRing) {
+        existingBonusRing.remove();
+    }
+    
     if (bonus > 0) {
-        // 双层圆环：内层基础分，外层专精加成
-        circleElement.style.cssText = `
-            background: conic-gradient(
-                #48bb78 0deg, 
-                #48bb78 ${basePercentage}deg,
-                #f0f0f0 ${basePercentage}deg
-            );
-            position: relative;
-        `;
+        // 基础圆环
+        circleElement.style.background = `conic-gradient(
+            #48bb78 0deg, 
+            #48bb78 ${basePercentage}deg,
+            #f0f0f0 ${basePercentage}deg
+        )`;
         
-        // 添加专精加成指示器
+        // 添加专精加成光环效果
         const bonusRing = document.createElement('div');
+        bonusRing.className = 'bonus-ring';
         bonusRing.style.cssText = `
             position: absolute;
-            top: -5px;
-            left: -5px;
-            width: 160px;
-            height: 160px;
+            top: -8px;
+            left: -8px;
+            width: 166px;
+            height: 166px;
             border-radius: 50%;
             border: 3px solid transparent;
             border-top: 3px solid #667eea;
-            animation: spin 3s linear infinite;
-            opacity: 0.7;
+            border-right: 3px solid #667eea;
+            animation: spin 4s linear infinite;
+            opacity: 0.6;
+            pointer-events: none;
         `;
         circleElement.appendChild(bonusRing);
-        
         circleElement.classList.add('excellent-plus');
     } else {
         const color = getScoreColor(baseScore);
@@ -266,9 +264,9 @@ function updateTotalScore(result) {
     levelElement.style.color = level.color;
     
     // 更新总结文字
-    summaryElement.textContent = level.summary;
+    summaryElement.innerHTML = level.summary;
     if (bonus > 0) {
-        summaryElement.innerHTML += `<br><small style="color: #667eea;">专精加成让您脱颖而出！</small>`;
+        summaryElement.innerHTML += `<br><small style="color: #667eea; font-weight: 500;">🌟 专精加成让您脱颖而出！</small>`;
     }
 }
 
@@ -400,9 +398,8 @@ function showSpecializationInfo(specializations, totalBonus) {
     container.appendChild(specDiv);
 }
 
-// 更新详细评分显示
 function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
-    console.log('开始更新详细评分', categoryScores); // 调试信息
+    console.log('开始更新详细评分', categoryScores);
     
     const container = document.getElementById('scoreCategories');
     const categoryInfo = {
@@ -410,7 +407,7 @@ function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
             name: '📋 基本信息',
             subcategories: {
                 name: '姓名信息',
-                phone: '联系电话',
+                phone: '联系电话', 
                 email: '电子邮箱',
                 location: '地址意向'
             }
@@ -428,7 +425,7 @@ function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
             subcategories: {
                 programming: '编程开发',
                 design: '设计创作',
-                data: '数据分析',
+                data: '数据分析', 
                 engineering: '工程技术',
                 business: '商务技能',
                 language: '语言能力'
@@ -456,6 +453,8 @@ function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
     container.innerHTML = '';
     
     Object.entries(categoryScores).forEach(([category, scoreData], index) => {
+        console.log(`处理类别: ${category}`, scoreData);
+        
         const categoryName = categoryInfo[category].name;
         const subcategories = categoryInfo[category].subcategories;
         
@@ -463,20 +462,20 @@ function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
         item.className = 'score-item';
         item.style.animationDelay = `${index * 0.1}s`;
         
-        // 获取基础分数和专精加成
-        const baseScore = baseScores[category].total || baseScores[category];
-        const specializationBonus = scoreData.specializationBonus || 0;
-        const displayScore = baseScore + specializationBonus;
-        const maxScore = typeof scoreData === 'object' ? 
-            Object.values(scoreData.maxScores || {}).reduce((a, b) => a + b, 0) : 
-            getMaxScore(category);
+        // 获取分数数据
+        const baseScore = baseScores[category]?.total || baseScores[category] || 0;
+        const categorySpecBonus = scoreData.specializationBonus || 0;
+        const displayScore = baseScore + categorySpecBonus;
+        const maxScore = getMaxScore(category);
         
-        // 基础进度百分比
-        const basePercentage = (baseScore / maxScore) * 100;
-        // 专精加成百分比（相对于maxScore）
-        const bonusPercentage = (specializationBonus / maxScore) * 100;
+        // 计算百分比
+        const basePercentage = Math.min((baseScore / maxScore) * 100, 100);
+        const bonusPercentage = Math.min((categorySpecBonus / maxScore) * 100, 30); // 限制专精显示宽度
         
         const scoreLevel = getScoreGrade(displayScore, maxScore);
+        
+        // 判断是否有专精
+        const hasSpecialization = categorySpecBonus > 0;
         
         item.innerHTML = `
             <div class="main-score-row">
@@ -485,28 +484,44 @@ function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
                     <span class="score-badge ${scoreLevel.class}" data-tooltip="${scoreLevel.tooltip}">
                         ${scoreLevel.text}
                     </span>
-                    ${specializationBonus > 0 ? '<span class="specialization-badge">⭐专精</span>' : ''}
+                    ${hasSpecialization ? '<span class="specialization-badge">⭐ 专精</span>' : ''}
                 </div>
                 <div class="score-right-section">
                     <div class="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 0%" data-target="${Math.min(basePercentage, 100)}"></div>
-                            ${specializationBonus > 0 ? 
-                                `<div class="progress-bonus" style="width: 0%; left: ${Math.min(basePercentage, 100)}%" data-target="${bonusPercentage}"></div>` 
-                                : ''}
-                        </div>
-                        <div class="progress-labels">
-                            <span class="max-score-label">${maxScore}</span>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar">
+                                <div class="progress-fill base-progress" 
+                                     style="width: 0%" 
+                                     data-target="${basePercentage}">
+                                </div>
+                                ${hasSpecialization ? 
+                                    `<div class="progress-fill bonus-progress" 
+                                          style="width: 0%; left: ${basePercentage}%" 
+                                          data-target="${bonusPercentage}">
+                                     </div>` : ''}
+                            </div>
+                            <div class="progress-legend">
+                                <span class="legend-item base">
+                                    <span class="legend-color base"></span>
+                                    基础 ${baseScore}
+                                </span>
+                                ${hasSpecialization ? 
+                                    `<span class="legend-item bonus">
+                                        <span class="legend-color bonus"></span>
+                                        专精 +${categorySpecBonus}
+                                     </span>` : ''}
+                                <span class="legend-max">/${maxScore}</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="category-score ${scoreLevel.scoreClass}">
-                        ${specializationBonus > 0 ? 
-                            `<div>${displayScore}
-                             <div class="score-breakdown">
-                                 <span class="base-score">${baseScore}</span>
-                                 <span class="bonus-score">+${specializationBonus}</span>
-                             </div></div>` : 
-                            displayScore}
+                    <div class="category-score-container">
+                        <div class="main-category-score ${scoreLevel.scoreClass}">
+                            ${displayScore}
+                        </div>
+                        ${hasSpecialization ? 
+                            `<div class="score-composition-mini">
+                                ${baseScore}<span class="plus">+</span>${categorySpecBonus}
+                             </div>` : ''}
                     </div>
                     <button class="toggle-detail collapsed" onclick="toggleCategoryDetail('${category}')">
                         详情
@@ -514,30 +529,58 @@ function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
                 </div>
             </div>
             <div class="category-detail" id="detail-${category}" style="display: none;">
-                <h4>详细评分breakdown</h4>
+                <h4>详细评分明细</h4>
                 <div class="subcategory-list">
-                    ${generateSubcategoryHTML(scoreData, subcategories)}
+                    ${generateSubcategoryHTML(scoreData, subcategories, baseScores[category])}
                 </div>
-                ${specializationBonus > 0 ? 
+                ${hasSpecialization ? 
                     `<div class="specialization-explanation">
-                        <div class="spec-header">⭐ 专精加成说明</div>
-                        <div class="spec-content">该项目获得 <strong>+${specializationBonus}分</strong> 专精加成，体现了您在相关领域的突出能力</div>
+                        <div class="spec-header">
+                            <span class="spec-icon">⭐</span>
+                            <span class="spec-title">专精加成详情</span>
+                        </div>
+                        <div class="spec-content">
+                            <div class="spec-boost">
+                                <span class="boost-label">专精加成</span>
+                                <span class="boost-value">+${categorySpecBonus} 分</span>
+                            </div>
+                            <div class="spec-description">
+                                您在该领域表现突出，获得专精加成认可
+                            </div>
+                        </div>
                      </div>` : ''}
             </div>
         `;
         
         container.appendChild(item);
         
-        // 启动动画...
+        // 延迟启动进度条动画
+        setTimeout(() => {
+            const baseFill = item.querySelector('.base-progress');
+            if (baseFill) {
+                const targetWidth = baseFill.getAttribute('data-target');
+                baseFill.style.width = targetWidth + '%';
+            }
+            
+            // 专精进度条延迟动画
+            const bonusFill = item.querySelector('.bonus-progress');
+            if (bonusFill) {
+                setTimeout(() => {
+                    const bonusWidth = bonusFill.getAttribute('data-target');
+                    bonusFill.style.width = bonusWidth + '%';
+                }, 600);
+            }
+        }, 200 + index * 100);
     });
 }
 
-// 生成子项HTML
-function generateSubcategoryHTML(scoreData, subcategories) {
-    if (!scoreData.details) {
+// 修改子项目生成函数
+function generateSubcategoryHTML(scoreData, subcategories, baseScoreData) {
+    if (!scoreData.details || !baseScoreData?.details) {
         return `
             <div class="empty-subcategory">
-                暂无详细评分数据
+                <span class="empty-icon">📊</span>
+                <span class="empty-text">暂无详细评分数据</span>
             </div>
         `;
     }
@@ -545,21 +588,27 @@ function generateSubcategoryHTML(scoreData, subcategories) {
     let html = '';
     Object.entries(subcategories).forEach(([key, name]) => {
         const score = scoreData.details[key] || 0;
-        const maxScore = scoreData.maxScores[key] || 1;
-        const percentage = (score / maxScore) * 100;
+        const maxScore = scoreData.maxScores?.[key] || baseScoreData.maxScores?.[key] || 1;
+        const percentage = Math.min((score / maxScore) * 100, 100);
         const subGrade = getScoreGrade(score, maxScore);
         
         html += `
             <div class="subcategory-item">
-                <span class="subcategory-name tooltip" data-tooltip="满分${maxScore}分">
-                    ${name}
-                </span>
-                <div class="subcategory-progress">
-                    <div class="subcategory-progress-fill" style="width: 0%" data-target="${percentage}"></div>
+                <div class="subcategory-info">
+                    <span class="subcategory-name">${name}</span>
+                    <span class="subcategory-max">满分${maxScore}</span>
                 </div>
-                <span class="subcategory-score ${subGrade.scoreClass}">
-                    ${score}/${maxScore}
-                </span>
+                <div class="subcategory-progress-container">
+                    <div class="subcategory-progress">
+                        <div class="subcategory-progress-fill" 
+                             style="width: 0%" 
+                             data-target="${percentage}">
+                        </div>
+                    </div>
+                    <span class="subcategory-score ${subGrade.scoreClass}">
+                        ${score}
+                    </span>
+                </div>
             </div>
         `;
     });

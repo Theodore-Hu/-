@@ -1,31 +1,25 @@
 // 简历解析器 - 优化版
 class ResumeParser {
     static async parsePDF(file) {
+        let pdf = null;
         try {
             if (typeof pdfjsLib === 'undefined') {
                 throw new Error('PDF.js库未加载，请刷新页面重试');
             }
             
-            // 添加进度回调
-            const progressCallback = (progress) => {
-                const percent = Math.round((progress.loaded / progress.total) * 100);
-                console.log(`PDF解析进度: ${percent}%`);
-            };
-            
             const arrayBuffer = await file.arrayBuffer();
             const loadingTask = pdfjsLib.getDocument({
                 data: arrayBuffer,
-                verbosity: 0, // 减少控制台输出
-                maxImageSize: 1024 * 1024, // 限制图片大小以节省内存
-                disableFontFace: true, // 禁用字体渲染以提高性能
+                verbosity: 0,
+                maxImageSize: 1024 * 1024,
+                disableFontFace: true,
                 useSystemFonts: false
             });
             
-            const pdf = await loadingTask.promise;
+            pdf = await loadingTask.promise;
             let fullText = '';
-            const maxPages = Math.min(pdf.numPages, 10); // 限制最大页数
+            const maxPages = Math.min(pdf.numPages, 10);
             
-            // 并行处理页面（但限制并发数量）
             const concurrentLimit = 3;
             const chunks = [];
             
@@ -39,14 +33,18 @@ class ResumeParser {
             }
             
             fullText = chunks.join('\n');
-            
-            // 清理内存
-            await pdf.destroy();
-            
             return this.cleanText(fullText);
         } catch (error) {
             console.error('PDF解析错误:', error);
             throw new Error('PDF解析失败: ' + error.message);
+        } finally {
+            if (pdf) {
+                try {
+                    await pdf.destroy();
+                } catch (cleanupError) {
+                    console.warn('PDF cleanup error:', cleanupError);
+                }
+            }
         }
     }
     
@@ -55,9 +53,7 @@ class ResumeParser {
             const page = await pdf.getPage(pageNum);
             const textContent = await page.getTextContent();
             
-            // 改进文本提取，保持格式
             const textItems = textContent.items.map(item => {
-                // 处理特殊字符和换行
                 let text = item.str;
                 if (item.hasEOL) {
                     text += '\n';
@@ -66,10 +62,7 @@ class ResumeParser {
             });
             
             const pageText = textItems.join(' ');
-            
-            // 清理页面内存
             page.cleanup();
-            
             return pageText;
         } catch (error) {
             console.warn(`页面 ${pageNum} 解析失败:`, error);
@@ -85,7 +78,6 @@ class ResumeParser {
             
             const arrayBuffer = await file.arrayBuffer();
             
-            // 使用更好的提取选项
             const result = await mammoth.extractRawText({ 
                 arrayBuffer,
                 includeEmbeddedStyleMap: false,
@@ -103,31 +95,24 @@ class ResumeParser {
         }
     }
     
-    // 文本清理和标准化
     static cleanText(text) {
         if (!text || typeof text !== 'string') {
             return '';
         }
         
         return text
-            // 统一换行符
             .replace(/\r\n/g, '\n')
             .replace(/\r/g, '\n')
-            // 移除多余空白
             .replace(/\t/g, ' ')
             .replace(/ +/g, ' ')
-            // 清理多余换行
             .replace(/\n\s*\n\s*\n/g, '\n\n')
-            // 移除行首行尾空格
             .split('\n')
             .map(line => line.trim())
             .join('\n')
-            // 移除文档开头和结尾的空白
             .trim();
     }
     
     static async parseFile(file) {
-        // 添加文件验证
         if (!file || !file.type || !file.name) {
             throw new Error('无效的文件');
         }
@@ -135,7 +120,6 @@ class ResumeParser {
         const fileType = file.type.toLowerCase();
         const fileName = file.name.toLowerCase();
         
-        // 检查文件是否损坏
         if (file.size === 0) {
             throw new Error('文件为空或损坏');
         }
@@ -154,12 +138,10 @@ class ResumeParser {
                 throw new Error('不支持的文件格式。仅支持 PDF (.pdf) 和 Word (.doc, .docx) 格式');
             }
             
-            // 验证提取的文本
             if (!text || text.trim().length < 10) {
                 throw new Error('无法从文件中提取有效内容，请检查文件是否正确或尝试其他格式');
             }
             
-            // 检查是否包含有意义的简历内容
             if (!this.isValidResumeContent(text)) {
                 throw new Error('文件内容不像是简历，请上传正确的简历文件');
             }
@@ -167,7 +149,6 @@ class ResumeParser {
             return text;
             
         } catch (error) {
-            // 更好的错误处理
             if (error.message.includes('password') || error.message.includes('encrypted')) {
                 throw new Error('文件已加密，请上传未加密的文件');
             }
@@ -180,13 +161,10 @@ class ResumeParser {
         }
     }
     
-    // 验证是否是有效的简历内容
     static isValidResumeContent(text) {
         const resumeKeywords = [
-            // 中文关键词
             '姓名', '电话', '邮箱', '教育', '经历', '技能', '工作', '实习', 
             '项目', '学校', '专业', '大学', '学院', '毕业', '求职', '应聘',
-            // 英文关键词
             'name', 'phone', 'email', 'education', 'experience', 'skills',
             'work', 'university', 'college', 'graduate', 'internship', 'project'
         ];
@@ -196,11 +174,9 @@ class ResumeParser {
             lowerText.includes(keyword.toLowerCase())
         ).length;
         
-        // 至少包含3个简历相关关键词
         return matchCount >= 3;
     }
     
-    // 获取文件信息
     static getFileInfo(file) {
         return {
             name: file.name,
@@ -211,7 +187,6 @@ class ResumeParser {
         };
     }
     
-    // 格式化文件大小
     static formatFileSize(bytes) {
         if (bytes === 0) return '0 B';
         
@@ -221,12 +196,6 @@ class ResumeParser {
         
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
-}
-
-// 导出为全局变量
-window.ResumeParser = ResumeParser;
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ResumeParser };
 }
 
 // 简历评分器 - 修正版
@@ -240,7 +209,7 @@ class ResumeScorer {
             achievements: 15
         };
         
-        // 学校分级体系
+        // 修正后的学校分级体系
         this.schoolRanks = {
             topTier: ['清华大学', '北京大学', '清华', '北大'],
             tier1A: [
@@ -261,7 +230,8 @@ class ResumeScorer {
                 '厦门大学', '山东大学', '华南理工大学', '湖南大学', '东北大学',
                 '兰州大学', '中国农业大学', '中国海洋大学', '西北农林科技大学',
                 '北京邮电大学', '华东理工大学', '西安电子科技大学', '北京科技大学',
-                '上海财经大学', '对外经济贸易大学', '中央财经大学'
+                '上海财经大学', '对外经济贸易大学', '中央财经大学',
+                '海大', '中海大', '山大', '华南理工', '湖大', '东北大学'
             ],
             tier2B: [
                 '北京交通大学', '北京工业大学', '北京化工大学', '中国石油大学', '中国地质大学',
@@ -308,7 +278,6 @@ class ResumeScorer {
         };
     }
     
-    // 简历分析
     analyzeResume(text) {
         const basicInfo = this.analyzeBasicInfo(text);
         const education = this.analyzeEducation(text);
@@ -328,7 +297,6 @@ class ResumeScorer {
         };
     }
     
-    // 基本信息分析
     analyzeBasicInfo(text) {
         const info = {};
         let count = 0;
@@ -355,7 +323,6 @@ class ResumeScorer {
         return namePatterns.some(pattern => pattern.test(text)) || text.length > 50;
     }
     
-    // 教育背景分析
     analyzeEducation(text) {
         const education = {
             schoolLevel: 0,
@@ -371,35 +338,34 @@ class ResumeScorer {
         return education;
     }
     
-    // 计算学历层次分数 - 保持原来的算法，允许超分
+    // 修正学历层次计算 - 确保最高5分
     calculateDegreeScore(degrees) {
         let score = 0;
         const degreeCount = {};
         
         degrees.forEach(degree => {
             if (degree.degree === 'phd') {
-                score += 5;  // 保持原来的5分
+                score += 3;  // 博士3分
                 degreeCount.phd = (degreeCount.phd || 0) + 1;
             } else if (degree.degree === 'master') {
-                score += 3;  // 保持原来的3分
+                score += 2;  // 硕士2分
                 degreeCount.master = (degreeCount.master || 0) + 1;
             } else if (degree.degree === 'bachelor') {
-                score += 1;  // 保持原来的1分
+                score += 1;  // 本科1分
                 degreeCount.bachelor = (degreeCount.bachelor || 0) + 1;
             }
         });
         
-        // 多学位加分 - 保持原来的算法
+        // 多学位加分：每多一个学位+1分
         const totalDegrees = Object.values(degreeCount).reduce((sum, count) => sum + count, 0);
         if (totalDegrees > 1) {
-            score += (totalDegrees - 1) * 2; // 每多一个学位+2分
+            score += (totalDegrees - 1) * 1;
         }
         
-        // 不限制上限，允许超分
-        return score;
+        // 确保最高5分
+        return Math.min(score, 5);
     }
     
-    // 技能识别
     analyzeSkills(text) {
         const skills = {
             programming: [],
@@ -438,7 +404,6 @@ class ResumeScorer {
         return cleanText.includes(cleanKeyword) || cleanKeyword.includes(cleanText);
     }
     
-    // 实践经验分析
     analyzeExperience(text) {
         const internshipCount = Math.max(
             (text.match(/实习|intern/gi) || []).length, 
@@ -453,7 +418,6 @@ class ResumeScorer {
         const hasCompanyName = /(有限公司|股份|集团|科技|互联网|腾讯|阿里|百度|字节|美团|京东|华为|小米|网易|滴滴|快手)/i.test(text);
         const hasAchievement = /(完成|实现|提升|优化|负责|开发|设计|获得|达到)/i.test(text);
         
-        // 保持原来的计算方法
         const internshipScore = Math.min(internshipCount * (hasCompanyName ? 3 : 2.5), 15);
         const projectScore = Math.min(projectCount * (hasAchievement ? 3 : 2.5), 15);
         const academicScore = this.calculateAcademicScore(text);
@@ -469,115 +433,286 @@ class ResumeScorer {
         };
     }
     
-    // 计算学术成果分数
     calculateAcademicScore(text) {
         let score = 0;
         
-        // Nature/Science
         const natureMatches = text.match(/(nature|science)/gi);
         if (natureMatches) score += natureMatches.length * 5;
         
-        // JCR一区
         const jcr1Matches = text.match(/(JCR.*?[一1]区|影响因子.*?[5-9])/gi);
         if (jcr1Matches) score += jcr1Matches.length * 4;
         
-        // SCI
         const sciMatches = text.match(/(SCI|sci)/gi);
         if (sciMatches) score += sciMatches.length * 3;
         
-        // EI
         const eiMatches = text.match(/(EI|ei)/gi);
         if (eiMatches) score += eiMatches.length * 2;
         
-        // 中文期刊
         const chineseMatches = text.match(/(核心期刊|中文期刊)/gi);
         if (chineseMatches) score += chineseMatches.length * 1;
         
         return Math.min(score, 15);
     }
     
-    // 奖励荣誉分析
+    // 修正后的奖励荣誉分析
     analyzeAchievements(text) {
         let totalScore = 0;
         const details = {};
         
-        // 学生干部
-        const chairmanMatches = text.match(/(主席|会长|社长)/gi);
-        const ministerMatches = text.match(/(部长|副主席|副会长)/gi);
-        const memberMatches = text.match(/(干事|委员|成员)/gi);
+        console.log('开始分析奖励荣誉:', text.substring(0, 200));
         
-        if (chairmanMatches) {
-            details.chairman = chairmanMatches.length;
-            totalScore += chairmanMatches.length * 3;
+        // 学生干部 - 改进正则表达式
+        const chairmanPatterns = [
+            /(学生会|社团|协会|俱乐部).{0,10}(主席|会长|社长)/gi,
+            /(主席|会长|社长)/gi
+        ];
+        const ministerPatterns = [
+            /(学生会|社团|协会|俱乐部).{0,10}(部长|副主席|副会长|副社长)/gi,
+            /(部长|副主席|副会长|副社长)/gi
+        ];
+        const memberPatterns = [
+            /(学生会|社团|协会|俱乐部).{0,10}(干事|委员|成员)/gi,
+            /(班长|团支书|学习委员|生活委员)/gi
+        ];
+        
+        let chairmanCount = 0;
+        let ministerCount = 0;
+        let memberCount = 0;
+        
+        chairmanPatterns.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+                chairmanCount += matches.length;
+                console.log('找到主席级别:', matches);
+            }
+        });
+        
+        ministerPatterns.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+                ministerCount += matches.length;
+                console.log('找到部长级别:', matches);
+            }
+        });
+        
+        memberPatterns.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+                memberCount += matches.length;
+                console.log('找到成员级别:', matches);
+            }
+        });
+        
+        if (chairmanCount > 0) {
+            details.chairman = chairmanCount;
+            totalScore += chairmanCount * 3;
+            console.log('主席级别得分:', chairmanCount * 3);
         }
-        if (ministerMatches) {
-            details.minister = ministerMatches.length;
-            totalScore += ministerMatches.length * 2;
+        if (ministerCount > 0) {
+            details.minister = ministerCount;
+            totalScore += ministerCount * 2;
+            console.log('部长级别得分:', ministerCount * 2);
         }
-        if (memberMatches) {
-            details.member = memberMatches.length;
-            totalScore += memberMatches.length * 1;
+        if (memberCount > 0) {
+            details.member = memberCount;
+            totalScore += memberCount * 1;
+            console.log('成员级别得分:', memberCount * 1);
         }
         
-        // 荣誉奖励
-        const nationalHonorMatches = text.match(/(国家.*?奖学金|国家.*?荣誉)/gi);
-        const provincialHonorMatches = text.match(/(省.*?奖学金|省.*?荣誉)/gi);
-        const schoolHonorMatches = text.match(/(校.*?奖学金|校.*?荣誉)/gi);
-        const collegeHonorMatches = text.match(/(院.*?奖学金|院.*?荣誉)/gi);
+        // 奖学金和荣誉 - 改进识别，默认为校级
+        const scholarshipPatterns = [
+            // 明确级别的奖学金
+            /(国家.{0,10}奖学金)/gi,
+            /(国家.{0,10}励志奖学金)/gi,
+            /(省.{0,10}奖学金)/gi,
+            /(校.{0,10}奖学金)/gi,
+            /(院.{0,10}奖学金)/gi,
+            // 通用奖学金（默认校级）
+            /(一等奖学金|二等奖学金|三等奖学金|特等奖学金)/gi,
+            /(优秀学生奖学金|学业奖学金|综合奖学金)/gi,
+            /(奖学金)/gi
+        ];
         
-        if (nationalHonorMatches) {
-            details.nationalHonor = nationalHonorMatches.length;
-            totalScore += nationalHonorMatches.length * 4;
-        }
-        if (provincialHonorMatches) {
-            details.provincialHonor = provincialHonorMatches.length;
-            totalScore += provincialHonorMatches.length * 3;
-        }
-        if (schoolHonorMatches) {
-            details.schoolHonor = schoolHonorMatches.length;
-            totalScore += schoolHonorMatches.length * 2;
-        }
-        if (collegeHonorMatches) {
-            details.collegeHonor = collegeHonorMatches.length;
-            totalScore += collegeHonorMatches.length * 1;
+        let nationalScholarship = 0;
+        let provincialScholarship = 0;
+        let schoolScholarship = 0;
+        let collegeScholarship = 0;
+        
+        // 国家级奖学金
+        const nationalMatches = text.match(/(国家.{0,10}奖学金|国家.{0,10}励志奖学金)/gi);
+        if (nationalMatches) {
+            nationalScholarship = nationalMatches.length;
+            console.log('找到国家级奖学金:', nationalMatches);
         }
         
-        // 竞赛获奖
-        const internationalCompMatches = text.match(/(国际.*?竞赛|国际.*?比赛)/gi);
-        const nationalCompMatches = text.match(/(国家.*?竞赛|全国.*?比赛)/gi);
-        const provincialCompMatches = text.match(/(省.*?竞赛|省.*?比赛)/gi);
-        const schoolCompMatches = text.match(/(校.*?竞赛|校.*?比赛)/gi);
+        // 省级奖学金
+        const provincialMatches = text.match(/(省.{0,10}奖学金|省级.{0,10}奖学金)/gi);
+        if (provincialMatches) {
+            provincialScholarship = provincialMatches.length;
+            console.log('找到省级奖学金:', provincialMatches);
+        }
         
-        if (internationalCompMatches) {
-            details.internationalComp = internationalCompMatches.length;
-            totalScore += internationalCompMatches.length * 4;
+        // 校级奖学金（明确标注的）
+        const schoolMatches = text.match(/(校.{0,10}奖学金|校级.{0,10}奖学金)/gi);
+        if (schoolMatches) {
+            schoolScholarship += schoolMatches.length;
+            console.log('找到校级奖学金:', schoolMatches);
         }
-        if (nationalCompMatches) {
-            details.nationalComp = nationalCompMatches.length;
-            totalScore += nationalCompMatches.length * 3;
+        
+        // 院级奖学金
+        const collegeMatches = text.match(/(院.{0,10}奖学金|院级.{0,10}奖学金)/gi);
+        if (collegeMatches) {
+            collegeScholarship = collegeMatches.length;
+            console.log('找到院级奖学金:', collegeMatches);
         }
-        if (provincialCompMatches) {
-            details.provincialComp = provincialCompMatches.length;
-            totalScore += provincialCompMatches.length * 2;
+        
+        // 默认校级的奖学金（没有明确级别的）
+        const generalMatches = text.match(/(一等奖学金|二等奖学金|三等奖学金|特等奖学金|优秀学生奖学金|学业奖学金|综合奖学金)/gi);
+        if (generalMatches) {
+            schoolScholarship += generalMatches.length;
+            console.log('找到通用奖学金（按校级计算）:', generalMatches);
         }
-        if (schoolCompMatches) {
-            details.schoolComp = schoolCompMatches.length;
-            totalScore += schoolCompMatches.length * 1;
+        
+        // 其他未分类的奖学金也按校级计算
+        const allScholarshipMatches = text.match(/奖学金/gi);
+        if (allScholarshipMatches) {
+            const totalFound = nationalScholarship + provincialScholarship + schoolScholarship + collegeScholarship;
+            const remaining = allScholarshipMatches.length - totalFound;
+            if (remaining > 0) {
+                schoolScholarship += remaining;
+                console.log('其他奖学金按校级计算:', remaining);
+            }
+        }
+        
+        // 记录和计分
+        if (nationalScholarship > 0) {
+            details.nationalHonor = nationalScholarship;
+            totalScore += nationalScholarship * 4;
+        }
+        if (provincialScholarship > 0) {
+            details.provincialHonor = provincialScholarship;
+            totalScore += provincialScholarship * 3;
+        }
+        if (schoolScholarship > 0) {
+            details.schoolHonor = schoolScholarship;
+            totalScore += schoolScholarship * 2;
+        }
+        if (collegeScholarship > 0) {
+            details.collegeHonor = collegeScholarship;
+            totalScore += collegeScholarship * 1;
+        }
+        
+        // 其他荣誉称号
+        const honorPatterns = [
+            /(优秀学生|三好学生|优秀毕业生|优秀团员|优秀党员)/gi,
+            /(先进个人|模范学生)/gi
+        ];
+        
+        honorPatterns.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+                // 没有明确级别的荣誉默认为校级
+                if (!details.schoolHonor) details.schoolHonor = 0;
+                details.schoolHonor += matches.length;
+                totalScore += matches.length * 2;
+                console.log('找到荣誉称号（按校级计算）:', matches);
+            }
+        });
+        
+        // 竞赛获奖 - 改进识别，默认为校级
+        const competitionPatterns = [
+            // 明确级别的竞赛
+            /(国际.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi,
+            /(全国.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi,
+            /(省.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi,
+            /(校.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi,
+            // 知名竞赛
+            /(ACM|ICPC|挑战杯|数学建模|创新创业)/gi,
+            // 通用竞赛（默认校级）
+            /(一等奖|二等奖|三等奖|特等奖|金奖|银奖|铜奖)/gi
+        ];
+        
+        let internationalComp = 0;
+        let nationalComp = 0;
+        let provincialComp = 0;
+        let schoolComp = 0;
+        
+        // 国际竞赛
+        const intCompMatches = text.match(/(国际.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|ACM|ICPC)/gi);
+        if (intCompMatches) {
+            internationalComp = intCompMatches.length;
+            console.log('找到国际竞赛:', intCompMatches);
+        }
+        
+        // 国家级竞赛
+        const natCompMatches = text.match(/(全国.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|国家级.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|挑战杯|数学建模|创新创业)/gi);
+        if (natCompMatches) {
+            nationalComp = natCompMatches.length;
+            console.log('找到国家级竞赛:', natCompMatches);
+        }
+        
+        // 省级竞赛
+        const provCompMatches = text.match(/(省.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|省级.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi);
+        if (provCompMatches) {
+            provincialComp = provCompMatches.length;
+            console.log('找到省级竞赛:', provCompMatches);
+        }
+        
+        // 校级竞赛（明确标注的）
+        const schCompMatches = text.match(/(校.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|校级.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖))/gi);
+        if (schCompMatches) {
+            schoolComp += schCompMatches.length;
+            console.log('找到校级竞赛:', schCompMatches);
+        }
+        
+        // 通用获奖（默认校级）
+        const generalAwardMatches = text.match(/(一等奖|二等奖|三等奖|特等奖|金奖|银奖|铜奖)/gi);
+        if (generalAwardMatches) {
+            // 排除已经计算过的
+            const totalCompFound = internationalComp + nationalComp + provincialComp + schoolComp;
+            const remainingAwards = Math.max(0, generalAwardMatches.length - totalCompFound);
+            if (remainingAwards > 0) {
+                schoolComp += remainingAwards;
+                console.log('通用获奖按校级计算:', remainingAwards);
+            }
+        }
+        
+        // 记录和计分
+        if (internationalComp > 0) {
+            details.internationalComp = internationalComp;
+            totalScore += internationalComp * 4;
+        }
+        if (nationalComp > 0) {
+            details.nationalComp = nationalComp;
+            totalScore += nationalComp * 3;
+        }
+        if (provincialComp > 0) {
+            details.provincialComp = provincialComp;
+            totalScore += provincialComp * 2;
+        }
+        if (schoolComp > 0) {
+            details.schoolComp = schoolComp;
+            totalScore += schoolComp * 1;
         }
         
         // 证书认证
-        const advancedCertMatches = text.match(/(高级.*?证书|注册.*?师|CPA|司法考试)/gi);
-        const generalCertMatches = text.match(/(四级|六级|计算机.*?级|普通话)/gi);
-        
+        const advancedCertMatches = text.match(/(CPA|注册会计师|司法考试|法律职业资格|高级.{0,10}证书|PMP|CISSP)/gi);
         if (advancedCertMatches) {
             details.advancedCert = advancedCertMatches.length;
             totalScore += advancedCertMatches.length * 2;
+            console.log('找到高级证书:', advancedCertMatches);
         }
+        
+        const generalCertMatches = text.match(/(英语.*[四六]级|CET-[46]|托福|雅思|GRE|计算机.*级|软考|普通话.*级|驾驶证|驾照)/gi);
         if (generalCertMatches) {
             details.generalCert = generalCertMatches.length;
             totalScore += generalCertMatches.length * 1;
+            console.log('找到一般证书:', generalCertMatches);
         }
         
+        console.log('奖励荣誉最终得分:', totalScore, '详情:', details);
+        
+        // 确保总分不超过15分
         return {
             totalScore: Math.min(totalScore, 15),
             details: details
@@ -589,13 +724,11 @@ class ResumeScorer {
         return sections.filter(section => text.includes(section)).length >= 3;
     }
     
-    // 检测专精类型
     detectSpecialization(analysis) {
         const specializations = [];
         const skills = analysis.skills;
         const experience = analysis.experience;
         
-        // 技能专精检测
         if (skills.programming && skills.programming.length >= 5) {
             specializations.push({
                 type: 'programming',
@@ -646,7 +779,6 @@ class ResumeScorer {
             });
         }
         
-        // 实践专精检测
         if (experience.internshipScore > 15) {
             const extraCount = Math.floor((experience.internshipScore - 15) / 3);
             specializations.push({
@@ -683,7 +815,6 @@ class ResumeScorer {
         return specializations;
     }
     
-    // 计算论文数量
     countPapers(text) {
         const patterns = [
             /(nature|science)/gi,
@@ -702,7 +833,6 @@ class ResumeScorer {
         return count;
     }
     
-    // 提取学历信息
     extractDegrees(text) {
         const degrees = [];
         
@@ -784,29 +914,36 @@ class ResumeScorer {
         return 'bachelor';
     }
     
+    // 修正学校分数计算
     calculateSchoolScore(text, degrees) {
         if (degrees.length === 0) {
             return this.getBasicSchoolScore(text);
         }
         
+        // 如果只有一个学位
+        if (degrees.length === 1) {
+            return Math.min(this.getSchoolRankScore(degrees[0].school), 15);
+        }
+        
+        // 多个学位：第一学历50% + 最高学历50%
         const sortedDegrees = degrees.sort((a, b) => {
             const order = { 'associate': 1, 'bachelor': 2, 'master': 3, 'phd': 4 };
             return (order[a.degree] || 0) - (order[b.degree] || 0);
         });
         
-        let finalScore = 0;
+        const firstDegree = sortedDegrees[0]; // 第一学历（最低学历）
+        const highestDegree = sortedDegrees[sortedDegrees.length - 1]; // 最高学历
         
-        if (sortedDegrees.length === 1) {
-            finalScore = this.getSchoolRankScore(sortedDegrees[0].school);
-        } else {
-            const firstDegree = sortedDegrees[0];
-            const highestDegree = sortedDegrees[sortedDegrees.length - 1];
-            
-            const firstScore = this.getSchoolRankScore(firstDegree.school);
-            const highestScore = this.getSchoolRankScore(highestDegree.school);
-            
-            finalScore = Math.round(firstScore * 0.5 + highestScore * 0.5);
-        }
+        const firstScore = this.getSchoolRankScore(firstDegree.school);
+        const highestScore = this.getSchoolRankScore(highestDegree.school);
+        
+        console.log('学校分数计算:');
+        console.log('第一学历:', firstDegree.school, '分数:', firstScore);
+        console.log('最高学历:', highestDegree.school, '分数:', highestScore);
+        
+        // 50%+50%加权
+        const finalScore = Math.round(firstScore * 0.5 + highestScore * 0.5);
+        console.log('最终学校分数:', finalScore);
         
         return Math.min(finalScore, 15);
     }
@@ -845,7 +982,7 @@ class ResumeScorer {
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
         )) {
-            return 9;
+            return 9; // 中国海洋大学在这里，985学校应该得9分
         }
         
         if (this.schoolRanks.tier2B.some(school => 
@@ -902,29 +1039,25 @@ class ResumeScorer {
                         text.match(/平均分[：:\s]*([0-9.]+)/);
         if (gpaMatch) {
             const gpa = parseFloat(gpaMatch[1]);
-            if (gpa > 5) return gpa / 25; // 百分制转4分制
-            if (gpa > 4) return gpa * 0.8; // 5分制转4分制
-            return gpa; // 已是4分制
+            if (gpa > 5) return gpa / 25;
+            if (gpa > 4) return gpa * 0.8;
+            return gpa;
         }
         return 0;
     }
     
-    // 主要评分函数
     scoreResume(text) {
         const analysis = this.analyzeResume(text);
         const baseScores = this.calculateScores(analysis);
         
         const specializations = this.detectSpecialization(analysis);
         
-        // 修正基础分计算，允许教育部分超分
         let baseTotalScore = 0;
         Object.entries(baseScores).forEach(([category, scoreObj]) => {
             const score = typeof scoreObj === 'object' ? scoreObj.total : scoreObj;
             if (category === 'education') {
-                // 教育部分不限制上限，允许超分
                 baseTotalScore += score;
             } else {
-                // 其他部分按原来的上限
                 baseTotalScore += Math.min(score, this.maxScores[category]);
             }
         });
@@ -947,7 +1080,6 @@ class ResumeScorer {
         };
     }
     
-    // 计算各项评分
     calculateScores(analysis) {
         return {
             basicInfo: this.scoreBasicInfoDetailed(analysis),
@@ -958,7 +1090,6 @@ class ResumeScorer {
         };
     }
     
-    // 基本信息评分
     scoreBasicInfoDetailed(analysis) {
         const count = analysis.basicInfo.count;
         const total = Math.min(count * 2, this.maxScores.basicInfo);
@@ -970,7 +1101,7 @@ class ResumeScorer {
         };
     }
     
-    // 教育背景评分 - 允许超分
+    // 修正教育背景评分 - 添加调试信息
     scoreEducationDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -978,6 +1109,10 @@ class ResumeScorer {
         // 学校层次分数（最高15分）
         details.school = Math.min(analysis.education.schoolLevel, 15);
         total += details.school;
+        
+        console.log('Education Debug Info:');
+        console.log('School Level Score:', details.school);
+        console.log('Degrees:', analysis.education.degrees);
         
         // 学业成绩（最高5分）
         const gpa4 = analysis.education.gpa;
@@ -989,40 +1124,39 @@ class ResumeScorer {
         else details.academic = 0;
         total += details.academic;
         
-        // 学历层次（不限制上限，允许超分）
+        console.log('Academic Score:', details.academic, 'GPA:', gpa4);
+        
+        // 学历层次（最高5分）
         details.degree = analysis.education.degreeScore;
         total += details.degree;
         
+        console.log('Degree Score:', details.degree);
+        console.log('Total Education Score:', total);
+        
         return {
-            total: total, // 不限制总分，允许超过25分
+            total: total,
             details: details,
-            maxScores: { school: 15, academic: 5, degree: '不限' }
+            maxScores: { school: 15, academic: 5, degree: 5 }
         };
     }
     
-    // 技能评分
     scoreSkillsDetailed(analysis) {
         const details = {};
         let total = 0;
         const skills = analysis.skills;
         
-        // 编程技能（最高4分）
         details.programming = Math.min(skills.programming.length, 4);
         total += details.programming;
         
-        // 设计技能（最高4分）
         details.design = Math.min(skills.design.length, 4);
         total += details.design;
         
-        // 数据分析（最高4分）
         details.data = Math.min(skills.data.length, 4);
         total += details.data;
         
-        // 工程技能（最高4分）
         details.engineering = Math.min(skills.engineering.length, 4);
         total += details.engineering;
         
-        // 文体艺术（最高4分）
         details.arts = Math.min(skills.arts.length, 4);
         total += details.arts;
         
@@ -1033,7 +1167,6 @@ class ResumeScorer {
         };
     }
     
-    // 经验评分
     scoreExperienceDetailed(analysis) {
         const exp = analysis.experience;
         
@@ -1055,9 +1188,13 @@ class ResumeScorer {
         };
     }
     
-    // 奖励荣誉评分
+    // 修正奖励荣誉评分 - 添加调试信息
     scoreAchievementsDetailed(analysis) {
         const ach = analysis.achievements;
+        
+        console.log('Achievements Debug Info:');
+        console.log('Achievement Details:', ach.details);
+        console.log('Total Achievement Score:', ach.totalScore);
         
         return {
             total: ach.totalScore,
@@ -1066,13 +1203,11 @@ class ResumeScorer {
         };
     }
     
-    // 岗位推荐
     recommendJobs(analysis, specializations = []) {
         const jobs = [];
         const skills = analysis.skills;
         const education = analysis.education;
         
-        // 1. 技术开发类
         if (skills.programming && skills.programming.length > 0) {
             jobs.push({
                 category: '软件开发工程师',
@@ -1081,7 +1216,6 @@ class ResumeScorer {
             });
         }
         
-        // 2. 数据分析类
         if (skills.data && skills.data.length > 0) {
             jobs.push({
                 category: '数据分析师',
@@ -1090,7 +1224,6 @@ class ResumeScorer {
             });
         }
         
-        // 3. 产品设计类
         if (skills.design && skills.design.length > 0) {
             jobs.push({
                 category: '产品设计师',
@@ -1099,7 +1232,6 @@ class ResumeScorer {
             });
         }
         
-        // 4. 工程技术类
         if (skills.engineering && skills.engineering.length > 0) {
             jobs.push({
                 category: '工程技术岗位',
@@ -1108,7 +1240,6 @@ class ResumeScorer {
             });
         }
         
-        // 5. 文体艺术类
         if (skills.arts && skills.arts.length > 0) {
             jobs.push({
                 category: '文体艺术相关岗位',
@@ -1117,7 +1248,6 @@ class ResumeScorer {
             });
         }
         
-        // 6. 学术研究类
         if (analysis.experience.academicScore > 0) {
             jobs.push({
                 category: '学术研究/科研助理',
@@ -1126,7 +1256,6 @@ class ResumeScorer {
             });
         }
         
-        // 7. 商务运营类
         if (analysis.experience.internshipScore > 0) {
             jobs.push({
                 category: '商务运营',
@@ -1135,7 +1264,6 @@ class ResumeScorer {
             });
         }
         
-        // 8. 专精加成推荐
         specializations.forEach(spec => {
             if (spec.type === 'programming' && spec.level >= 5) {
                 jobs.push({
@@ -1153,7 +1281,6 @@ class ResumeScorer {
             }
         });
         
-        // 9. 兜底推荐
         if (jobs.length === 0) {
             if (education.schoolLevel >= 11) {
                 jobs.push({
@@ -1170,7 +1297,6 @@ class ResumeScorer {
             }
         }
         
-        // 去重并排序
         const uniqueJobs = jobs.filter((job, index, self) => 
             index === self.findIndex(j => j.category === job.category)
         );
@@ -1178,7 +1304,6 @@ class ResumeScorer {
         return uniqueJobs.sort((a, b) => b.match - a.match).slice(0, 4);
     }
     
-    // 生成建议
     generateSuggestions(scores, analysis) {
         const suggestions = [];
         
@@ -1214,6 +1339,7 @@ class ResumeScorer {
             if (analysis.experience.projectScore < 6) {
                 suggestions.push('参与更多项目，详细描述项目成果');
             }
+            
             if (analysis.experience.academicScore === 0) {
                 suggestions.push('考虑参与学术研究或发表论文');
             }
@@ -1224,7 +1350,6 @@ class ResumeScorer {
             suggestions.push('争取担任学生干部或参与社团活动');
         }
         
-        // 特殊建议
         if (analysis.education.schoolLevel >= 13) {
             suggestions.push('充分利用名校背景，可考虑申请知名企业或继续深造');
         }

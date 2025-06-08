@@ -1752,3 +1752,26 @@ textarea:focus {
 .dark-theme .education-note strong {
     color: #69c0ff;
 }
+
+/* 细项专精标识 */
+.subcategory-item.has-specialization {
+    border-left: 3px solid #667eea;
+    background: linear-gradient(90deg, #f8faff 0%, #ffffff 100%);
+}
+
+.sub-spec-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1px 4px;
+    border-radius: 8px;
+    font-size: 0.7em;
+    font-weight: 600;
+    margin-left: 4px;
+    box-shadow: 0 1px 3px rgba(102, 126, 234, 0.3);
+}
+
+.subcategory-score small {
+    color: #667eea;
+    font-weight: 600;
+    margin-left: 2px;
+}

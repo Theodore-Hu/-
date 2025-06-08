@@ -668,14 +668,19 @@ class ResumeScoreApp {
                                 <span class="spec-title">专精加成详情</span>
                             </div>
                             <div class="spec-content">
-                                ${categorySpecializations.map(spec => `
-                                    <div class="spec-item">
-                                        <div class="spec-boost">
-                                            <span class="boost-label">${spec.description}</span>
-                                            <span class="boost-value">+${spec.bonus} 分</span>
+                                ${category === 'achievements' ? 
+                                    // 奖励荣誉专精显示具体超出项目
+                                    this.generateAchievementSpecDetails(scoreData.extraScore || {}) :
+                                    // 其他类别显示原有逻辑
+                                    categorySpecializations.map(spec => `
+                                        <div class="spec-item">
+                                            <div class="spec-boost">
+                                                <span class="boost-label">${spec.description}</span>
+                                                <span class="boost-value">+${spec.bonus} 分</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                `).join('')}
+                                    `).join('')
+                                }
                                 <div class="spec-total-boost">
                                     <span class="boost-label">专精加成总计</span>
                                     <span class="boost-value">+${specializationBonus} 分</span>
@@ -720,12 +725,6 @@ class ResumeScoreApp {
             `;
         }
         
-        // 如果是奖励荣誉类别，需要显示超出分数的细项
-        let extraScoreInfo = {};
-        if (category === 'achievements' && scoreData.extraScore) {
-            extraScoreInfo = scoreData.extraScore;
-        }
-        
         let html = '';
         Object.entries(subcategories).forEach(([key, name]) => {
             let score, maxScore;
@@ -738,8 +737,27 @@ class ResumeScoreApp {
                 score = scoreData.details[key] || 0;
                 maxScore = scoreData.subMaxScores?.[key] || 5;
                 
-                // 检查是否有超出分数
-                const hasExtraScore = extraScoreInfo[key] && extraScoreInfo[key] > 0;
+                // 检查是否有超出分数 - 修正逻辑
+                let hasExtraScore = false;
+                let extraScore = 0;
+                
+                // 根据细项类型检查超出分数
+                if (key === 'leadership' && scoreData.extraScore?.leadership) {
+                    hasExtraScore = true;
+                    extraScore = scoreData.extraScore.leadership;
+                } else if (key === 'honor' && scoreData.extraScore?.honor) {
+                    hasExtraScore = true;
+                    extraScore = scoreData.extraScore.honor;
+                } else if (key === 'competition' && scoreData.extraScore?.competition) {
+                    hasExtraScore = true;
+                    extraScore = scoreData.extraScore.competition;
+                } else if (key === 'certificate' && scoreData.extraScore?.certificate) {
+                    hasExtraScore = true;
+                    extraScore = scoreData.extraScore.certificate;
+                }
+                
+                const percentage = Math.min((score / maxScore) * 100, 100);
+                const subGrade = this.getScoreGrade(score, maxScore);
                 
                 html += `
                     <div class="subcategory-item ${hasExtraScore ? 'has-specialization' : ''}">
@@ -754,16 +772,15 @@ class ResumeScoreApp {
                             <div class="subcategory-progress">
                                 <div class="subcategory-progress-fill" 
                                      style="width: 0%" 
-                                     data-target="100">
+                                     data-target="${hasExtraScore ? 100 : percentage}">
                                 </div>
                             </div>
-                            <span class="subcategory-score excellent">
-                                ${score}${hasExtraScore ? `<small>+${extraScoreInfo[key]}</small>` : ''}
+                            <span class="subcategory-score ${hasExtraScore ? 'excellent' : subGrade.scoreClass}">
+                                ${score}${hasExtraScore ? `<small>+${extraScore}</small>` : ''}
                             </span>
                         </div>
                     </div>
                 `;
-                return; // 跳过后面的通用处理
             } else {
                 score = scoreData.details[key] || 0;
                 if (category === 'education') {
@@ -776,35 +793,64 @@ class ResumeScoreApp {
                 } else {
                     maxScore = scoreData.maxScores?.[key] || 1;
                 }
-            }
-            
-            const percentage = maxScore === '不限' ? Math.min((score / 10) * 100, 100) : Math.min((score / maxScore) * 100, 100);
-            const subGrade = this.getScoreGrade(score, maxScore === '不限' ? 10 : maxScore);
-            
-            html += `
-                <div class="subcategory-item">
-                    <div class="subcategory-info">
-                        <span class="subcategory-name">${name}</span>
-                        <span class="subcategory-max">满分${maxScore}</span>
-                    </div>
-                    <div class="subcategory-progress-container">
-                        <div class="subcategory-progress">
-                            <div class="subcategory-progress-fill" 
-                                 style="width: 0%" 
-                                 data-target="${percentage}">
-                            </div>
+                
+                const percentage = maxScore === '不限' ? Math.min((score / 10) * 100, 100) : Math.min((score / maxScore) * 100, 100);
+                const subGrade = this.getScoreGrade(score, maxScore === '不限' ? 10 : maxScore);
+                
+                html += `
+                    <div class="subcategory-item">
+                        <div class="subcategory-info">
+                            <span class="subcategory-name">${name}</span>
+                            <span class="subcategory-max">满分${maxScore}</span>
                         </div>
-                        <span class="subcategory-score ${subGrade.scoreClass}">
-                            ${score}
-                        </span>
+                        <div class="subcategory-progress-container">
+                            <div class="subcategory-progress">
+                                <div class="subcategory-progress-fill" 
+                                     style="width: 0%" 
+                                     data-target="${percentage}">
+                                </div>
+                            </div>
+                            <span class="subcategory-score ${subGrade.scoreClass}">
+                                ${score}
+                            </span>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
         });
         
         return html;
     }
-    
+
+    // 在 ResumeScoreApp 类中添加这个方法
+    generateAchievementSpecDetails(extraScore) {
+        const categoryMap = {
+            leadership: '学生干部专精',
+            honor: '荣誉奖励专精', 
+            competition: '竞赛获奖专精',
+            certificate: '证书认证专精'
+        };
+        
+        let html = '';
+        Object.entries(extraScore).forEach(([key, score]) => {
+            if (score > 0) {
+                const bonus = Math.min(Math.floor(score / 3), 5);
+                if (bonus > 0) {
+                    html += `
+                        <div class="spec-item">
+                            <div class="spec-boost">
+                                <span class="boost-label">${categoryMap[key]} (超出基础分${score}分)</span>
+                                <span class="boost-value">+${bonus} 分</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        });
+        
+        return html;
+    }
+
     toggleCategoryDetail(category) {
         const detailDiv = document.getElementById(`detail-${category}`);
         const button = document.querySelector(`button[onclick="app.toggleCategoryDetail('${category}')"]`);

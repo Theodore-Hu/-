@@ -223,10 +223,9 @@ class ResumeParser {
     }
 }
 
-// 简历评分器 - 最终版
+// 简历评分器 - 优化版
 class ResumeScorer {
     constructor() {
-        // 最终版基础分数配置
         this.maxScores = {
             basicInfo: 10,
             education: 25,
@@ -235,41 +234,44 @@ class ResumeScorer {
             achievements: 15
         };
         
-        // 学校分级体系（按高考分数线分类）
+        // 学校分级体系 - 基于高考分数线重新分类
         this.schoolRanks = {
-            // TOP2（15分）- 仅清华北大
+            // TOP顶尖（15分）- 仅清华北大
             topTier: [
                 '清华大学', '北京大学', '清华', '北大'
             ],
             
-            // 顶尖985（13分）- 稳定前十
+            // 顶尖985（13分）- 稳定前10
             tier1A: [
                 '复旦大学', '上海交通大学', '浙江大学', '中国科学技术大学', '南京大学',
-                '中国人民大学', '北京师范大学', '华中科技大学', '中山大学', '西安交通大学',
-                '复旦', '上交', '交大', '浙大', '中科大', '南大', '人大', '北师大', '华科', '中大', '西交'
+                '中国人民大学', '北京航空航天大学', '北京理工大学',
+                '中国科学院大学', '南方科技大学',
+                '复旦', '交大', '浙大', '中科大', '南大', '人大', '北航', '北理工', '国科大', '南科大'
             ],
             
-            // 优质985+南科大等（11分）
+            // 优秀985（11分）- 前15-20名
             tier1B: [
-                '哈尔滨工业大学', '北京航空航天大学', '北京理工大学', '东南大学', 
-                '天津大学', '同济大学', '南开大学', '西北工业大学', '华东师范大学',
-                '中南大学', '电子科技大学', '重庆大学', '大连理工大学', '吉林大学',
-                '厦门大学', '山东大学', '华南理工大学', '兰州大学', '东北大学',
-                '南方科技大学', '中国科学院大学', '国科大', '中科院大学', '南科大',
-                '哈工大', '北航', '北理工', '东大', '天大', '同济', '南开', '西工大', '华师大'
+                '西安交通大学', '哈尔滨工业大学', '华中科技大学', '同济大学',
+                '东南大学', '天津大学', '北京师范大学', '南开大学',
+                '中山大学', '西北工业大学', '华东师范大学',
+                '西交', '哈工大', '华科', '同济', '东南', '天大', '北师大', '南开',
+                '中大', '西工大', '华师大'
             ],
             
             // 普通985+顶尖211（9分）
-            tier2: [
-                '中国农业大学', '国防科技大学', '中央民族大学', '湖南大学', '中国海洋大学', '西北农林科技大学',
+            tier2A: [
+                '中南大学', '电子科技大学', '重庆大学', '大连理工大学', '吉林大学',
+                '厦门大学', '山东大学', '华南理工大学', '湖南大学', '东北大学',
+                '兰州大学', '中国农业大学', '中国海洋大学', '西北农林科技大学',
                 '北京邮电大学', '华东理工大学', '西安电子科技大学', '北京科技大学',
-                '中南财经政法大学', '上海财经大学', '对外经济贸易大学', '西南财经大学',
-                '中央财经大学', '华中师范大学', '华南师范大学', '陕西师范大学',
-                '北邮', '华东理工', '西电', '北科大', '中南财', '上财', '对外经贸', '西南财', '央财'
+                '上海财经大学', '对外经济贸易大学', '中央财经大学',
+                '中南', '电子科大', '重大', '大工', '吉大', '厦大', '山大', '华工',
+                '湖大', '东北大学', '兰大', '中农', '中海洋', '西农', '北邮', '华理',
+                '西电', '北科', '上财', '对外经贸', '央财'
             ],
             
             // 普通211（7分）
-            tier3: [
+            tier2B: [
                 '北京交通大学', '北京工业大学', '北京化工大学', '中国石油大学', '中国地质大学',
                 '中国矿业大学', '河海大学', '江南大学', '南京理工大学', '南京航空航天大学',
                 '安徽大学', '合肥工业大学', '福州大学', '南昌大学', '郑州大学',
@@ -279,8 +281,8 @@ class ResumeScorer {
                 '中国传媒大学', '北京外国语大学', '上海外国语大学'
             ],
             
-            // 双一流学科建设（5分）
-            tier4: [
+            // 省属重点+双一流学科（5分）
+            tier3: [
                 '西湖大学', '上海科技大学', '深圳大学', '苏州大学',
                 '杭州电子科技大学', '宁波大学', '江苏科技大学', '南京信息工程大学',
                 '浙江理工大学', '温州医科大学', '广东工业大学', '汕头大学',
@@ -318,324 +320,292 @@ class ResumeScorer {
                 '内容运营', '用户运营', '活动策划', '文案写作', '新媒体', '短视频',
                 '电商运营', '社群运营', '产品运营', 'CRM', 'ERP', 'SaaS', '增长黑客'
             ],
-            language: [
-                '英语', '日语', '韩语', '德语', '法语', '西班牙语', '俄语', '阿拉伯语',
-                '四级', '六级', '雅思', '托福', 'GRE', 'GMAT', 'CET', 'BEC',
-                'IELTS', 'TOEFL', '口语', '翻译', '同声传译', '商务英语'
-            ],
             engineering: [
                 'CAD', 'AutoCAD', 'SolidWorks', 'Pro/E', 'UG', 'CATIA', 'Inventor',
                 'ANSYS', 'ABAQUS', 'COMSOL', '有限元', '仿真', '建模', '测试', '实验设计',
                 'LabVIEW', 'Altium Designer', 'Keil', 'Quartus', 'Vivado', 'FPGA'
             ]
         };
-
-        // 个人信息关键词库
-        this.personalInfoKeywords = [
-            '姓名', '性别', '年龄', '出生日期', '生日', '民族', '政治面貌', '籍贯', '户籍',
-            '身高', '体重', '婚姻状况', '健康状况', '身份证', 'ID', '护照', '签证',
-            '联系电话', '手机', '电话', '座机', '传真', 'phone', 'tel', 'mobile',
-            '邮箱', 'email', 'mail', '电子邮件', 'gmail', 'qq.com', '163.com', '126.com',
-            '地址', '住址', '通讯地址', '家庭地址', '联系地址', '现居', '常住',
-            '求职意向', '意向岗位', '目标职位', '期望', '应聘', '求职',
-            'GitHub', 'LinkedIn', 'Portfolio', '个人网站', '博客', 'Blog',
-            '微信', 'WeChat', 'QQ', '微博', 'Weibo', 'Twitter', 'Facebook',
-            '党员', '团员', '群众', '民主党派', '无党派', '汉族', '满族', '回族', '藏族',
-            '未婚', '已婚', '离异', '丧偶', '单身', '恋爱', '订婚'
-        ];
-
-        // 添加去重相关配置
-        this.duplicatePatterns = {
-            // 工程技能去重模式
-            engineering: [
-                ['ANSYS', '仿真', '有限元'],
-                ['SolidWorks', '建模', '三维设计'],
-                ['CAD', 'AutoCAD', '制图'],
-                ['MATLAB', '数值计算', '算法'],
-                ['LabVIEW', '数据采集', '测试']
-            ],
-            // 编程技能去重模式
-            programming: [
-                ['JavaScript', 'JS', 'Node.js', 'React', 'Vue'],
-                ['Python', 'Django', 'Flask', 'pandas', 'numpy'],
-                ['Java', 'Spring', 'SpringBoot', 'Hibernate'],
-                ['C++', 'C', '程序设计', '算法'],
-                ['数据库', 'SQL', 'MySQL', 'Oracle', 'MongoDB']
-            ],
-            // 数据分析去重模式
-            data: [
-                ['Excel', '数据分析', '数据处理', '统计'],
-                ['SPSS', '统计分析', '数据挖掘'],
-                ['Python', 'pandas', 'numpy', '数据科学'],
-                ['机器学习', '深度学习', 'AI', '人工智能']
-            ]
-        };
     }
     
-    // 检测专精类型（按新逻辑）
+    // 检测专精类型
     detectSpecialization(analysis) {
         const specializations = [];
-        let totalSpecBonus = 0;
+        const skills = analysis.skills;
         
-        // 1. 教育背景专精（学历专精）
-        const eduSpecBonus = this.calculateEducationSpecialization(analysis.education);
-        if (eduSpecBonus > 0) {
+        // 技能专精检测
+        if (skills.programming && skills.programming.length >= 6) {
             specializations.push({
-                type: 'education',
-                level: analysis.education.degrees.length,
-                bonus: eduSpecBonus
+                type: 'programming',
+                category: 'skill',
+                level: skills.programming.length,
+                bonus: Math.min(skills.programming.length - 5, 8),
+                description: `编程开发专精 (掌握${skills.programming.length}项技术)`
             });
-            totalSpecBonus += eduSpecBonus;
         }
         
-        // 2. 技能专精（超出25分基础分的部分）
-        const skillsSpecBonus = this.calculateSkillsSpecialization(analysis.skills);
-        if (skillsSpecBonus > 0) {
+        if (skills.data && skills.data.length >= 4) {
             specializations.push({
-                type: 'skills',
-                level: analysis.skills.total,
-                bonus: skillsSpecBonus
+                type: 'data',
+                category: 'skill',
+                level: skills.data.length,
+                bonus: Math.min(skills.data.length - 3, 6),
+                description: `数据分析专精 (掌握${skills.data.length}项技术)`
             });
-            totalSpecBonus += skillsSpecBonus;
         }
         
-        // 3. 经验专精（超出25分基础分的部分）
-        const expSpecBonus = this.calculateExperienceSpecialization(analysis.experience);
-        if (expSpecBonus > 0) {
+        if (skills.design && skills.design.length >= 4) {
             specializations.push({
-                type: 'experience',
-                level: analysis.experience.internshipCount + analysis.experience.projectCount,
-                bonus: expSpecBonus
+                type: 'design',
+                category: 'skill',
+                level: skills.design.length,
+                bonus: Math.min(skills.design.length - 3, 6),
+                description: `设计创作专精 (掌握${skills.design.length}项技术)`
             });
-            totalSpecBonus += expSpecBonus;
         }
         
-        // 4. 荣誉专精（超出15分基础分的部分）
-        const achSpecBonus = this.calculateAchievementsSpecialization(analysis.achievements);
-        if (achSpecBonus > 0) {
+        if (skills.engineering && skills.engineering.length >= 4) {
             specializations.push({
-                type: 'achievements',
-                level: this.countTotalAchievements(analysis.achievements),
-                bonus: achSpecBonus
+                type: 'engineering',
+                category: 'skill',
+                level: skills.engineering.length,
+                bonus: Math.min(skills.engineering.length - 3, 6),
+                description: `工程技术专精 (掌握${skills.engineering.length}项技术)`
             });
-            totalSpecBonus += achSpecBonus;
         }
         
-        return { specializations, totalSpecBonus };
+        // 教育专精检测
+        const educationSpec = this.detectEducationSpecialization(analysis.education);
+        if (educationSpec.bonus > 0) {
+            specializations.push(educationSpec);
+        }
+        
+        // 学术成果专精检测
+        const academicSpec = this.detectAcademicSpecialization(analysis);
+        if (academicSpec.bonus > 0) {
+            specializations.push(academicSpec);
+        }
+        
+        // 实践专精检测
+        if (analysis.experience.internshipCount >= 4) {
+            specializations.push({
+                type: 'internship',
+                category: 'experience',
+                level: analysis.experience.internshipCount,
+                bonus: Math.min(analysis.experience.internshipCount - 3, 5),
+                description: `实习专精 (${analysis.experience.internshipCount}次实习经历)`
+            });
+        }
+        
+        if (analysis.experience.projectCount >= 5) {
+            specializations.push({
+                type: 'project',
+                category: 'experience',
+                level: analysis.experience.projectCount,
+                bonus: Math.min(analysis.experience.projectCount - 4, 5),
+                description: `项目专精 (${analysis.experience.projectCount}个项目经验)`
+            });
+        }
+        
+        // 竞赛专精检测
+        const competitionSpec = this.detectCompetitionSpecialization(analysis.achievements);
+        if (competitionSpec.bonus > 0) {
+            specializations.push(competitionSpec);
+        }
+        
+        return specializations;
     }
     
-    // 计算教育专精加成
-    calculateEducationSpecialization(education) {
+    // 检测教育专精
+    detectEducationSpecialization(education) {
         let bonus = 0;
-        const degrees = education.degrees || [];
+        let descriptions = [];
         
-        // 学历专精加成
-        degrees.forEach(degree => {
-            switch(degree.degree) {
-                case 'phd':
+        if (education.degrees && education.degrees.length > 0) {
+            education.degrees.forEach(degree => {
+                if (degree.degree === 'phd') {
                     bonus += 5;
-                    break;
-                case 'master':
+                    descriptions.push('博士学位');
+                } else if (degree.degree === 'master') {
                     bonus += 3;
-                    break;
-                case 'bachelor':
+                    descriptions.push('硕士学位');
+                } else if (degree.degree === 'bachelor') {
                     bonus += 1;
-                    break;
+                    descriptions.push('本科学位');
+                }
+            });
+            
+            // 多学位加分
+            if (education.degrees.length > 1) {
+                const extraDegrees = education.degrees.length - 1;
+                bonus += extraDegrees * 2;
+                descriptions.push(`多学位(+${extraDegrees}个)`);
             }
-        });
-        
-        // 多学位加成
-        if (degrees.length > 1) {
-            bonus += (degrees.length - 1) * 2;
         }
-        
-        return bonus;
-    }
-    
-    // 计算技能专精加成
-    calculateSkillsSpecialization(skills) {
-        const totalSkills = skills.total;
-        if (totalSkills > 25) {
-            return totalSkills - 25; // 超出25分的部分算专精
-        }
-        return 0;
-    }
-    
-    // 计算经验专精加成
-    calculateExperienceSpecialization(experience) {
-        // 计算实际经验分数
-        let totalExpScore = 0;
-        
-        // 实习分数
-        for (let i = 0; i < experience.internshipCount; i++) {
-            let itemScore = 3; // 基础分
-            if (experience.hasCompanyName) itemScore += 1;
-            if (experience.hasAchievement) itemScore += 1;
-            totalExpScore += Math.min(itemScore, 5);
-        }
-        
-        // 项目分数
-        for (let i = 0; i < experience.projectCount; i++) {
-            let itemScore = 3; // 基础分
-            if (experience.hasDuration) itemScore += 1;
-            if (experience.hasAchievement) itemScore += 1;
-            totalExpScore += Math.min(itemScore, 5);
-        }
-        
-        if (totalExpScore > 25) {
-            return totalExpScore - 25; // 超出25分的部分算专精
-        }
-        return 0;
-    }
-    
-    // 计算荣誉专精加成
-    calculateAchievementsSpecialization(achievements) {
-        const totalAchievements = this.countTotalAchievements(achievements);
-        
-        let baseScore = totalAchievements; // 每项1分
-        
-        // 学术成果质量加成
-        let qualityBonus = 0;
-        if (achievements.paperCount) {
-            // 每篇论文额外2分质量加成
-            qualityBonus += achievements.paperCount * 2;
-        }
-        if (achievements.patentCount) {
-            qualityBonus += achievements.patentCount * 1; // 每项专利额外1分
-        }
-        
-        const totalScore = baseScore + qualityBonus;
-        
-        if (totalScore > 15) {
-            return totalScore - 15; // 超出15分的部分算专精
-        }
-        return qualityBonus; // 质量加成部分算专精
-    }
-    
-    // 统计总荣誉数量
-    countTotalAchievements(achievements) {
-        return achievements.scholarshipCount + 
-               achievements.competitionCount + 
-               achievements.certificateCount + 
-               (achievements.hasLeadership ? 1 : 0) +
-               achievements.paperCount +
-               achievements.patentCount +
-               achievements.softwareCount;
-    }
-    
-    // 评分主函数
-    scoreResume(text) {
-        const analysis = this.analyzeResume(text);
-        const baseScores = this.calculateScores(analysis);
-        
-        // 检测专精（新逻辑）
-        const { specializations, totalSpecBonus } = this.detectSpecialization(analysis);
-        
-        // 计算基础总分（限制在100分内）
-        const baseTotalScore = Math.min(
-            Object.values(baseScores).reduce((sum, scoreObj) => {
-                return sum + (typeof scoreObj === 'object' ? scoreObj.total : scoreObj);
-            }, 0),
-            100
-        );
-        
-        // 最终总分 = 基础分 + 专精加成
-        const finalTotalScore = baseTotalScore + totalSpecBonus;
-        
-        // 应用专精加成到各项分数显示
-        const enhancedScores = this.applySpecializationDisplay(baseScores, specializations);
-        
-        const suggestions = this.generateSuggestions(enhancedScores, analysis);
-        const jobRecommendations = this.recommendJobs(analysis, specializations);
         
         return {
-            baseScore: Math.round(baseTotalScore),
-            specializationBonus: totalSpecBonus,
-            totalScore: Math.round(finalTotalScore),
-            categoryScores: enhancedScores,
-            baseScores: baseScores,
-            analysis: analysis,
-            specializations: specializations,
-            suggestions: suggestions,
-            jobRecommendations: jobRecommendations
+            type: 'education',
+            category: 'education',
+            level: education.degrees ? education.degrees.length : 0,
+            bonus: bonus,
+            description: `教育专精 (${descriptions.join('、')})`
         };
     }
     
-    // 应用专精显示
-    applySpecializationDisplay(baseScores, specializations) {
-        const displayScores = JSON.parse(JSON.stringify(baseScores));
+    // 检测学术成果专精
+    detectAcademicSpecialization(analysis) {
+        let bonus = 0;
+        let papers = [];
+        const text = analysis.originalText || '';
         
-        specializations.forEach(spec => {
-            switch(spec.type) {
-                case 'education':
-                    displayScores.education.specializationBonus = 
-                        (displayScores.education.specializationBonus || 0) + spec.bonus;
-                    break;
-                case 'skills':
-                    displayScores.skills.specializationBonus = 
-                        (displayScores.skills.specializationBonus || 0) + spec.bonus;
-                    break;
-                case 'experience':
-                    displayScores.experience.specializationBonus = 
-                        (displayScores.experience.specializationBonus || 0) + spec.bonus;
-                    break;
-                case 'achievements':
-                    displayScores.achievements.specializationBonus = 
-                        (displayScores.achievements.specializationBonus || 0) + spec.bonus;
-                    break;
+        // 期刊论文检测
+        const paperPatterns = {
+            nature: { pattern: /(nature|science)/i, score: 5, name: 'Nature/Science' },
+            jcr1: { pattern: /(JCR.*?[一1]区|影响因子.*?[5-9]\d*|IF.*?[5-9])/i, score: 4, name: 'JCR一区' },
+            sci: { pattern: /(SCI|sci)/i, score: 3, name: 'SCI期刊' },
+            ei: { pattern: /(EI|ei)/i, score: 2, name: 'EI期刊' },
+            chinese: { pattern: /(核心期刊|中文期刊)/i, score: 1, name: '中文期刊' }
+        };
+        
+        Object.values(paperPatterns).forEach(pattern => {
+            const matches = text.match(new RegExp(pattern.pattern.source, 'gi'));
+            if (matches) {
+                const count = matches.length;
+                bonus += pattern.score * count;
+                papers.push(`${pattern.name}(${count}篇)`);
             }
         });
         
-        return displayScores;
+        return {
+            type: 'academic',
+            category: 'academic',
+            level: papers.length,
+            bonus: bonus,
+            description: papers.length > 0 ? `学术成果专精 (${papers.join('、')})` : ''
+        };
+    }
+    
+    // 检测竞赛专精
+    detectCompetitionSpecialization(achievements) {
+        let bonus = 0;
+        let descriptions = [];
+        
+        // 国际竞赛
+        if (achievements.internationalCompetitions > 0) {
+            bonus += achievements.internationalCompetitions * 3;
+            descriptions.push(`国际竞赛${achievements.internationalCompetitions}项`);
+        }
+        
+        // 国家级A类竞赛
+        if (achievements.nationalCompetitions > 0) {
+            bonus += achievements.nationalCompetitions * 2;
+            descriptions.push(`国家级竞赛${achievements.nationalCompetitions}项`);
+        }
+        
+        // 连续获奖加分
+        if (achievements.competitionCount >= 3) {
+            bonus += 2;
+            descriptions.push('连续获奖');
+        }
+        
+        return {
+            type: 'competition',
+            category: 'achievement',
+            level: achievements.competitionCount,
+            bonus: bonus,
+            description: descriptions.length > 0 ? `竞赛专精 (${descriptions.join('、')})` : ''
+        };
     }
     
     // 简历分析
     analyzeResume(text) {
+        const basicInfo = this.analyzeBasicInfo(text);
+        const education = this.analyzeEducation(text);
+        const skills = this.analyzeSkills(text);
+        const experience = this.analyzeExperience(text);
+        const achievements = this.analyzeAchievements(text);
+        
         return {
-            personalInfo: this.analyzePersonalInfo(text),
-            education: this.analyzeEducation(text),
-            skills: this.analyzeSkills(text),
-            experience: this.analyzeExperience(text),
-            achievements: this.analyzeAchievements(text),
+            originalText: text,
+            basicInfo: basicInfo,
+            education: education,
+            skills: skills,
+            experience: experience,
+            achievements: achievements,
             wordCount: text.length,
             hasStructure: this.hasGoodStructure(text)
         };
     }
     
-    // 个人信息分析 - 新增
-    analyzePersonalInfo(text) {
-        let infoCount = 0;
-        const detectedInfo = [];
+    // 基本信息分析
+    analyzeBasicInfo(text) {
+        const info = {};
+        let count = 0;
         
-        // 检测各种个人信息
-        this.personalInfoKeywords.forEach(keyword => {
-            if (text.includes(keyword)) {
-                if (!detectedInfo.includes(keyword)) {
-                    detectedInfo.push(keyword);
-                    infoCount++;
-                }
-            }
-        });
+        // 姓名
+        if (this.hasName(text)) {
+            info.name = true;
+            count++;
+        }
         
-        // 特殊模式检测
+        // 电话
         if (/1[3-9]\d{9}/.test(text)) {
-            if (!detectedInfo.includes('手机号')) {
-                detectedInfo.push('手机号');
-                infoCount++;
-            }
+            info.phone = true;
+            count++;
         }
         
+        // 邮箱
         if (/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)) {
-            if (!detectedInfo.includes('邮箱')) {
-                detectedInfo.push('邮箱');
-                infoCount++;
-            }
+            info.email = true;
+            count++;
         }
         
-        return {
-            count: Math.min(infoCount, 10), // 最多计算10项
-            items: detectedInfo.slice(0, 10)
-        };
+        // 地址
+        if (/(市|省|区|县|路|街|号|意向|求职)/.test(text)) {
+            info.address = true;
+            count++;
+        }
+        
+        // 求职意向
+        if (/(求职|应聘|岗位|职位|意向)/.test(text)) {
+            info.intention = true;
+            count++;
+        }
+        
+        // GitHub/网站
+        if (/(github|gitlab|个人网站|博客|portfolio)/i.test(text)) {
+            info.website = true;
+            count++;
+        }
+        
+        // 社交账号
+        if (/(linkedin|微博|知乎)/i.test(text)) {
+            info.social = true;
+            count++;
+        }
+        
+        // 出生日期
+        if (/(出生|生日|\d{4}年\d{1,2}月)/.test(text)) {
+            info.birthday = true;
+            count++;
+        }
+        
+        // 政治面貌
+        if (/(党员|团员|群众|政治面貌)/.test(text)) {
+            info.political = true;
+            count++;
+        }
+        
+        return { ...info, count: count };
+    }
+    
+    hasName(text) {
+        const namePatterns = [
+            /姓名[：:]\s*([^\s\n]{2,4})/,
+            /^([^\s\n]{2,4})$/m,
+            /(个人简历|简历)/
+        ];
+        return namePatterns.some(pattern => pattern.test(text)) || text.length > 50;
     }
     
     // 教育背景分析
@@ -645,33 +615,70 @@ class ResumeScorer {
             hasGPA: /GPA|绩点|平均分|成绩/.test(text),
             gpa: this.extractGPA(text),
             hasMajor: /(专业|学院|系|计算机|软件|电子|机械|经济|金融|管理|文学|理学|工学|医学|法学|教育学|艺术学|农学)/.test(text),
-            isRelevant: false,
             degrees: this.extractDegrees(text),
-            isCrossMajor: false
+            majorMatch: this.analyzeMajorMatch(text)
         };
         
         education.schoolLevel = this.calculateSchoolScore(text, education.degrees);
-        education.isCrossMajor = this.detectCrossMajor(education.degrees);
         
         return education;
     }
     
-    // 检测跨专业
-    detectCrossMajor(degrees) {
-        if (degrees.length < 2) return false;
+    // 专业匹配分析
+    analyzeMajorMatch(text) {
+        const majors = this.extractMajors(text);
         
-        const majorCategories = {
-            'engineering': ['计算机', '软件', '电子', '机械', '自动化', '通信', '材料', '化工', '土木', '建筑'],
-            'business': ['经济', '管理', '金融', '会计', '市场', '商务', '工商', '财务'],
-            'liberal_arts': ['文学', '外语', '新闻', '传播', '哲学', '历史', '法学'],
-            'science': ['数学', '物理', '化学', '生物', '统计', '地理'],
-            'medicine': ['医学', '护理', '药学', '临床'],
-            'education': ['教育', '师范', '心理']
+        if (majors.length === 0) {
+            return { score: 1, type: 'no_major' };
+        } else if (majors.length === 1) {
+            return { score: 5, type: 'consistent' };
+        } else {
+            // 检查是否跨专业
+            const isCrossMajor = this.detectCrossMajor(majors);
+            return { 
+                score: isCrossMajor ? 3 : 5, 
+                type: isCrossMajor ? 'cross_major' : 'consistent',
+                majors: majors
+            };
+        }
+    }
+    
+    extractMajors(text) {
+        const majorPatterns = [
+            /专业[：:]\s*([^\s\n]+)/g,
+            /(计算机|软件|电子|机械|经济|金融|管理|文学|理学|工学|医学|法学|教育学|艺术学|农学)[^\s\n]*专业/g
+        ];
+        
+        const majors = [];
+        majorPatterns.forEach(pattern => {
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                majors.push(match[1] || match[0]);
+            }
+        });
+        
+        return [...new Set(majors)]; // 去重
+    }
+    
+    detectCrossMajor(majors) {
+        // 简单的跨专业检测逻辑
+        const categories = {
+            tech: ['计算机', '软件', '电子', '信息', '通信'],
+            business: ['经济', '金融', '管理', '商务'],
+            engineering: ['机械', '土木', '化工', '材料'],
+            science: ['数学', '物理', '化学', '生物']
         };
         
-        // 简化检测：如果本科和研究生专业属于不同大类，则认为是跨专业
-        // 这里简化处理，实际可以更复杂
-        return degrees.length >= 2;
+        const majorCategories = majors.map(major => {
+            for (let [category, keywords] of Object.entries(categories)) {
+                if (keywords.some(keyword => major.includes(keyword))) {
+                    return category;
+                }
+            }
+            return 'other';
+        });
+        
+        return new Set(majorCategories).size > 1;
     }
     
     // 提取学历信息
@@ -730,9 +737,9 @@ class ResumeScorer {
             ...this.schoolRanks.topTier,
             ...this.schoolRanks.tier1A,
             ...this.schoolRanks.tier1B,
-            ...this.schoolRanks.tier2,
-            ...this.schoolRanks.tier3,
-            ...this.schoolRanks.tier4
+            ...this.schoolRanks.tier2A,
+            ...this.schoolRanks.tier2B,
+            ...this.schoolRanks.tier3
         ];
         
         for (let school of allSchools) {
@@ -756,7 +763,7 @@ class ResumeScorer {
         return 'bachelor';
     }
     
-    // 学校评分系统 - 按高考分数分类
+    // 计算学校评分
     calculateSchoolScore(text, degrees) {
         if (degrees.length === 0) {
             return this.getBasicSchoolScore(text);
@@ -771,13 +778,10 @@ class ResumeScorer {
         let finalScore = 0;
         
         if (sortedDegrees.length === 1) {
-            // 只有一个学历
-            const degree = sortedDegrees[0];
-            finalScore = this.getSchoolRankScore(degree.school);
+            finalScore = this.getSchoolRankScore(sortedDegrees[0].school);
         } else {
-            // 多个学历：第一学历50% + 最高学历50%
-            const firstDegree = sortedDegrees[0]; // 第一学历（通常是本科）
-            const highestDegree = sortedDegrees[sortedDegrees.length - 1]; // 最高学历
+            const firstDegree = sortedDegrees[0];
+            const highestDegree = sortedDegrees[sortedDegrees.length - 1];
             
             const firstScore = this.getSchoolRankScore(firstDegree.school);
             const highestScore = this.getSchoolRankScore(highestDegree.school);
@@ -785,10 +789,9 @@ class ResumeScorer {
             finalScore = Math.round(firstScore * 0.5 + highestScore * 0.5);
         }
         
-        return Math.min(finalScore, 15); // 确保不超过15分
+        return Math.min(finalScore, 15);
     }
     
-    // 学校排名评分 - 根据高考分数线分类
     getSchoolRankScore(schoolName) {
         if (!schoolName) return 2;
         
@@ -798,7 +801,6 @@ class ResumeScorer {
             .replace(/科技$/, '')
             .replace(/理工$/, '');
         
-        // TOP2 (15分) - 仅清华北大
         if (this.schoolRanks.topTier.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
@@ -806,7 +808,6 @@ class ResumeScorer {
             return 15;
         }
         
-        // 顶尖985 (13分) - 稳定前十
         if (this.schoolRanks.tier1A.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
@@ -814,7 +815,6 @@ class ResumeScorer {
             return 13;
         }
         
-        // 优质985+南科大等 (11分)
         if (this.schoolRanks.tier1B.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
@@ -822,34 +822,30 @@ class ResumeScorer {
             return 11;
         }
         
-        // 普通985+顶尖211 (9分)
-        if (this.schoolRanks.tier2.some(school => 
+        if (this.schoolRanks.tier2A.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
         )) {
             return 9;
         }
         
-        // 普通211 (7分)
-        if (this.schoolRanks.tier3.some(school => 
+        if (this.schoolRanks.tier2B.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
         )) {
             return 7;
         }
         
-        // 双一流学科建设 (5分)
-        if (this.schoolRanks.tier4.some(school => 
+        if (this.schoolRanks.tier3.some(school => 
             this.matchSchoolName(schoolName, school) || 
             this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
         )) {
             return 5;
         }
         
-        // 其他大学
         if (/(大学|学院)/i.test(schoolName)) {
             if (/(985|211|双一流|重点)/i.test(schoolName)) return 6;
-            return 3; // 普通本科
+            return 3;
         }
         
         if (/(专科|高职)/i.test(schoolName)) return 1;
@@ -857,14 +853,11 @@ class ResumeScorer {
         return 2;
     }
     
-    // 学校名称匹配辅助函数
     matchSchoolName(name1, name2) {
         if (!name1 || !name2) return false;
         
-        // 直接匹配
         if (name1.includes(name2) || name2.includes(name1)) return true;
         
-        // 简化匹配
         const simple1 = name1.replace(/[大学院科技理工]/g, '');
         const simple2 = name2.replace(/[大学院科技理工]/g, '');
         
@@ -873,10 +866,7 @@ class ResumeScorer {
     }
     
     getBasicSchoolScore(text) {
-        // 清华北大特殊处理
         if (/(清华|北大)/i.test(text)) return 15;
-        
-        // 其他模糊匹配
         if (/(复旦|交大|浙大|中科大|南大)/i.test(text)) return 13;
         if (/(985)/i.test(text)) return 11;
         if (/(211|双一流)/i.test(text)) return 9;
@@ -887,69 +877,42 @@ class ResumeScorer {
         return 2;
     }
     
-    // GPA提取和转换为4分制
     extractGPA(text) {
         const gpaMatch = text.match(/GPA[：:\s]*([0-9.]+)/i) || 
                         text.match(/绩点[：:\s]*([0-9.]+)/) ||
                         text.match(/平均分[：:\s]*([0-9.]+)/);
         if (gpaMatch) {
-            let gpa = parseFloat(gpaMatch[1]);
-            
-            // 转换为4分制
-            if (gpa > 5) {
-                // 百分制转4分制
-                gpa = gpa / 25;
-            } else if (gpa > 4 && gpa <= 5) {
-                // 5分制转4分制
-                gpa = gpa * 0.8;
-            }
-            // 否则认为已经是4分制
-            
-            return Math.min(gpa, 4.0); // 限制最高4.0
+            const gpa = parseFloat(gpaMatch[1]);
+            if (gpa > 5) return gpa / 25; // 百分制转4分制
+            if (gpa > 4) return gpa * 0.8; // 5分制转4分制
+            return gpa; // 已是4分制
         }
         return 0;
     }
     
-    // 技能识别 - 增强去重版本
+    // 技能识别
     analyzeSkills(text) {
         const skills = {
             programming: [],
             design: [],
             data: [],
             business: [],
-            language: [],
             engineering: [],
             total: 0
         };
         
-        // 将文本按句子分块避免重复计算
-        const blocks = text.split(/[。！？\n\r]+/).filter(block => block.trim().length > 0);
-        const globalDetectedSkills = new Set();
+        const textLower = text.toLowerCase();
         
-        // 对每个文本块进行技能识别
-        blocks.forEach(block => {
-            const blockText = block.trim();
-            const blockDetectedSkills = new Set();
-            const usedPatterns = new Set();
-            
-            Object.keys(this.skillKeywords).forEach(category => {
-                this.skillKeywords[category].forEach(skill => {
-                    const skillLower = skill.toLowerCase();
-                    const blockTextLower = blockText.toLowerCase();
-                    
-                    if ((blockTextLower.includes(skillLower) || 
-                        blockTextLower.includes(skillLower.replace(/[.\s]/g, '')) ||
-                        this.fuzzyMatch(blockTextLower, skillLower)) &&
-                        !globalDetectedSkills.has(skillLower) &&
-                        !this.isDuplicateInBlock(skill, category, blockDetectedSkills, usedPatterns)) {
-                        
-                        if (!skills[category].includes(skill)) {
-                            skills[category].push(skill);
-                            globalDetectedSkills.add(skillLower);
-                            blockDetectedSkills.add(skill);
-                        }
+        Object.keys(this.skillKeywords).forEach(category => {
+            this.skillKeywords[category].forEach(skill => {
+                const skillLower = skill.toLowerCase();
+                if (textLower.includes(skillLower) || 
+                    textLower.includes(skillLower.replace(/[.\s]/g, '')) ||
+                    this.fuzzyMatch(textLower, skillLower)) {
+                    if (!skills[category].includes(skill)) {
+                        skills[category].push(skill);
                     }
-                });
+                }
             });
         });
         
@@ -960,146 +923,44 @@ class ResumeScorer {
         return skills;
     }
     
-    // 检查是否为重复技能
-    isDuplicateInBlock(skill, category, blockDetectedSkills, usedPatterns) {
-        const skillLower = skill.toLowerCase();
-        
-        // 同义词去重：检查是否与已检测的技能是同义词
-        if (this.duplicatePatterns[category]) {
-            for (let pattern of this.duplicatePatterns[category]) {
-                const patternKey = pattern.join('-').toLowerCase();
-                
-                // 如果当前技能属于某个模式组
-                if (pattern.some(p => p.toLowerCase() === skillLower)) {
-                    // 检查这个模式组是否已经被使用过
-                    if (usedPatterns.has(patternKey)) {
-                        return true;
-                    }
-                    
-                    // 检查已检测的技能中是否有同组的
-                    const hasPatternMatch = Array.from(blockDetectedSkills).some(detectedSkill => 
-                        pattern.some(p => p.toLowerCase() === detectedSkill.toLowerCase())
-                    );
-                    
-                    if (hasPatternMatch) {
-                        return true;
-                    }
-                    
-                    // 标记这个模式组已使用
-                    usedPatterns.add(patternKey);
-                }
-            }
-        }
-        
-        return false;
-    }
-    
     fuzzyMatch(text, keyword) {
         const cleanText = text.replace(/[\s\-_.]/g, '');
         const cleanKeyword = keyword.replace(/[\s\-_.]/g, '');
         return cleanText.includes(cleanKeyword) || cleanKeyword.includes(cleanText);
     }
     
-    // 实践经验分析 - 按条目计分
     analyzeExperience(text) {
-        // 更精确的实习和项目计数
-        const internshipMatches = text.match(/(实习|intern)/gi) || [];
-        const projectMatches = text.match(/(项目|project)/gi) || [];
-        
-        // 通过更复杂的模式识别
-        const detailedInternships = text.match(/(公司|企业|集团|科技|有限).*?(实习|intern)/gi) || [];
-        const detailedProjects = text.match(/(开发|设计|完成|负责).*?(项目|系统|网站|APP)/gi) || [];
-        
         return {
-            internshipCount: Math.max(internshipMatches.length, detailedInternships.length),
-            projectCount: Math.max(projectMatches.length, detailedProjects.length),
+            internshipCount: Math.max((text.match(/实习|intern/gi) || []).length, 
+                                    (text.match(/(公司|企业|集团|科技|有限).*?(实习|intern)/gi) || []).length),
+            projectCount: Math.max((text.match(/项目|project/gi) || []).length,
+                                 (text.match(/(开发|设计|完成|负责).*?(项目|系统|网站|APP)/gi) || []).length),
             hasCompanyName: /(有限公司|股份|集团|科技|互联网|腾讯|阿里|百度|字节|美团|京东|华为|小米|网易|滴滴|快手)/i.test(text),
             hasDuration: /(年|月|周|day|week|\d+个月|\d+年)/i.test(text),
             hasAchievement: /(完成|实现|提升|优化|负责|开发|设计|获得|达到)/i.test(text)
         };
     }
     
-    // 成就分析 - 增强去重版本
     analyzeAchievements(text) {
-        // 按更细的粒度分块，避免同一项成果被重复计算
-        const blocks = text.split(/[。！？；\n\r•·]+/).filter(block => block.trim().length > 5);
+        const scholarshipCount = (text.match(/(奖学金|scholarship|学业奖励)/gi) || []).length;
+        const honorCount = (text.match(/(荣誉|表彰|优秀|先进|模范)/gi) || []).length;
+        const competitionCount = (text.match(/(竞赛|比赛|competition|contest|获奖|奖项)/gi) || []).length;
+        const certificateCount = (text.match(/(证书|证明|认证|certificate|资格证)/gi) || []).length;
+        const hasLeadership = /(主席|部长|队长|负责人|leader|班长|会长|社长|组长)/i.test(text);
+        
+        // 检测国际和国家级竞赛
+        const internationalCompetitions = (text.match(/(国际|international|world|global).*?(竞赛|比赛|competition)/gi) || []).length;
+        const nationalCompetitions = (text.match(/(国家级|national|全国).*?(竞赛|比赛|competition)/gi) || []).length;
         
         return {
-            scholarshipCount: this.countUniqueItems(blocks, /(奖学金|scholarship|学业奖励)/gi),
-            competitionCount: this.countUniqueItems(blocks, /(竞赛|比赛|competition|contest|获奖|奖项)/gi),
-            certificateCount: this.countUniqueItems(blocks, /(证书|证明|认证|certificate|资格证)/gi),
-            hasLeadership: /(主席|部长|队长|负责人|leader|班长|会长|社长|组长)/i.test(text),
-            paperCount: this.countUniquePapers(blocks),
-            patentCount: this.countUniqueItems(blocks, /(发明专利|实用新型|外观设计|专利|patent)/gi),
-            softwareCount: this.countUniqueItems(blocks, /(软件著作权|软著|计算机软件著作权)/gi)
+            scholarshipCount: scholarshipCount,
+            honorCount: honorCount,
+            competitionCount: competitionCount,
+            certificateCount: certificateCount,
+            hasLeadership: hasLeadership,
+            internationalCompetitions: internationalCompetitions,
+            nationalCompetitions: nationalCompetitions
         };
-    }
-    
-    // 统计唯一项目
-    countUniqueItems(blocks, pattern) {
-        const uniqueItems = new Set();
-        
-        blocks.forEach(block => {
-            const matches = block.match(pattern) || [];
-            if (matches.length > 0) {
-                // 基于上下文生成唯一标识，避免重复计算
-                const context = block.substring(0, 50).toLowerCase().trim();
-                uniqueItems.add(context);
-            }
-        });
-        
-        return Math.min(uniqueItems.size, 15); // 设置合理上限
-    }
-    
-    // 统计唯一论文
-    countUniquePapers(blocks) {
-        const uniquePapers = new Set();
-        const paperKeywords = [
-            /(Nature|Science|Cell)/gi,
-            /(SCI|JCR|一区|二区|三区|四区)/gi,
-            /(EI|conference)/gi,
-            /(论文|发表|期刊|journal|publication)/gi
-        ];
-        
-        blocks.forEach(block => {
-            let hasPaper = false;
-            paperKeywords.forEach(pattern => {
-                if (pattern.test(block)) {
-                    hasPaper = true;
-                }
-            });
-            
-            if (hasPaper) {
-                // 提取论文特征避免重复
-                const paperFeature = this.extractPaperFeature(block);
-                if (paperFeature) {
-                    uniquePapers.add(paperFeature);
-                }
-            }
-        });
-        
-        return Math.min(uniquePapers.size, 10);
-    }
-    
-    // 提取论文特征
-    extractPaperFeature(text) {
-        // 尝试提取论文标题或期刊名称
-        const patterns = [
-            /《([^》]+)》/g,
-            /"([^"]+)"/g,
-            /[A-Z][a-zA-Z\s]+Journal/gi,
-            /[A-Z][a-zA-Z\s]+Conference/gi
-        ];
-        
-        for (let pattern of patterns) {
-            const match = text.match(pattern);
-            if (match && match[0].length > 5) {
-                return match[0].toLowerCase().trim();
-            }
-        }
-        
-        // 如果没有找到特征，使用前30个字符
-        return text.substring(0, 30).toLowerCase().trim();
     }
     
     hasGoodStructure(text) {
@@ -1107,7 +968,39 @@ class ResumeScorer {
         return sections.filter(section => text.includes(section)).length >= 3;
     }
     
-    // 计算各项评分 - 新的分数配置
+    // 主要评分函数
+    scoreResume(text) {
+        const analysis = this.analyzeResume(text);
+        const baseScores = this.calculateScores(analysis);
+        
+        const specializations = this.detectSpecialization(analysis);
+        
+        const baseTotalScore = Math.min(
+            Object.values(baseScores).reduce((sum, scoreObj) => {
+                return sum + (typeof scoreObj === 'object' ? scoreObj.total : scoreObj);
+            }, 0),
+            100
+        );
+        
+        const specializationBonus = specializations.reduce((sum, spec) => sum + spec.bonus, 0);
+        const finalTotalScore = baseTotalScore + specializationBonus;
+        
+        const suggestions = this.generateSuggestions(baseScores, analysis);
+        const jobRecommendations = this.recommendJobs(analysis, specializations);
+        
+        return {
+            baseScore: Math.round(baseTotalScore),
+            specializationBonus: specializationBonus,
+            totalScore: Math.round(finalTotalScore),
+            categoryScores: baseScores,
+            analysis: analysis,
+            specializations: specializations,
+            suggestions: suggestions,
+            jobRecommendations: jobRecommendations
+        };
+    }
+    
+    // 计算各项评分
     calculateScores(analysis) {
         return {
             basicInfo: this.scoreBasicInfoDetailed(analysis),
@@ -1118,22 +1011,19 @@ class ResumeScorer {
         };
     }
     
-    // 基本信息评分 (10分) - 新逻辑
+    // 基本信息评分 - 每有一条得2分，满5条得满分
     scoreBasicInfoDetailed(analysis) {
-        const infoCount = analysis.personalInfo.count;
-        const score = Math.min(infoCount * 2, 10); // 每条2分，最高10分
+        const count = analysis.basicInfo.count;
+        const total = Math.min(count * 2, this.maxScores.basicInfo);
         
         return {
-            total: score,
-            details: {
-                count: infoCount,
-                items: analysis.personalInfo.items
-            },
-            maxScores: { total: 10 }
+            total: total,
+            details: analysis.basicInfo,
+            maxScore: this.maxScores.basicInfo
         };
     }
     
-    // 教育背景评分 (25分)
+    // 教育背景评分
     scoreEducationDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -1142,23 +1032,18 @@ class ResumeScorer {
         details.school = Math.min(analysis.education.schoolLevel, 15);
         total += details.school;
         
-        // 学业成绩（最高5分）- 按4分制GPA评分
-        if (analysis.education.gpa >= 3.7) details.academic = 5;
-        else if (analysis.education.gpa >= 3.3) details.academic = 4;
-        else if (analysis.education.gpa >= 3.0) details.academic = 3;
-        else if (analysis.education.gpa >= 2.7) details.academic = 2;
+        // 学业成绩（最高5分）- 标准化为4分制
+        const gpa4 = analysis.education.gpa;
+        if (gpa4 >= 3.7) details.academic = 5;
+        else if (gpa4 >= 3.3) details.academic = 4;
+        else if (gpa4 >= 2.7) details.academic = 3;
+        else if (gpa4 >= 2.0) details.academic = 2;
         else if (analysis.education.hasGPA) details.academic = 1;
         else details.academic = 0;
         total += details.academic;
         
-        // 专业匹配度（最高5分）
-        if (analysis.education.hasMajor && !analysis.education.isCrossMajor) {
-            details.major = 5; // 专业对口
-        } else if (analysis.education.hasMajor && analysis.education.isCrossMajor) {
-            details.major = 3; // 跨专业
-        } else {
-            details.major = 1; // 无专业信息
-        }
+        // 专业匹配（最高5分）
+        details.major = analysis.education.majorMatch.score;
         total += details.major;
         
         return {
@@ -1168,216 +1053,171 @@ class ResumeScorer {
         };
     }
     
-    // 专业技能评分 (25分) - 每项1分
+    // 技能评分 - 每个类别最高5分
     scoreSkillsDetailed(analysis) {
         const details = {};
         let total = 0;
         const skills = analysis.skills;
         
-        // 每个技能类别按实际数量计分
-        details.programming = skills.programming.length;
+        // 编程技能（最高5分）
+        details.programming = Math.min(skills.programming.length, 5);
         total += details.programming;
         
-        details.design = skills.design.length;
+        // 设计技能（最高5分）
+        details.design = Math.min(skills.design.length, 5);
         total += details.design;
         
-        details.data = skills.data.length;
+        // 数据分析（最高5分）
+        details.data = Math.min(skills.data.length, 5);
         total += details.data;
         
-        details.engineering = skills.engineering.length;
+        // 工程技能（最高5分）
+        details.engineering = Math.min(skills.engineering.length, 5);
         total += details.engineering;
         
-        details.business = skills.business.length;
+        // 商务技能（最高5分）
+        details.business = Math.min(skills.business.length, 5);
         total += details.business;
         
-        details.language = skills.language.length;
-        total += details.language;
-        
         return {
-            total: Math.min(total, this.maxScores.skills), // 基础分限制25分
+            total: Math.min(total, this.maxScores.skills),
             details: details,
-            maxScores: { programming: 99, design: 99, data: 99, engineering: 99, business: 99, language: 99 }
+            maxScores: { programming: 5, design: 5, data: 5, engineering: 5, business: 5 }
         };
     }
     
-    // 实践经验评分 (25分) - 按条目计分，不设细项限制
+    // 经验评分 - 灵活计分制度
     scoreExperienceDetailed(analysis) {
-        const details = {};
-        let total = 0;
         const exp = analysis.experience;
+        let total = 0;
         
-        // 每个实习/项目基础3分，质量加成最多2分，单条最高5分
-        let internshipScore = 0;
-        let projectScore = 0;
+        // 实习经历：每次3分基础分 + 成果描述1分 + 知名公司1分
+        const internshipScore = exp.internshipCount * 3;
+        const internshipBonus = exp.hasAchievement ? exp.internshipCount : 0;
+        const internshipCompanyBonus = exp.hasCompanyName ? exp.internshipCount : 0;
         
-        // 实习评分
-        for (let i = 0; i < exp.internshipCount; i++) {
-            let itemScore = 3; // 基础分
-            if (exp.hasCompanyName) itemScore += 1; // 知名公司加成
-            if (exp.hasAchievement) itemScore += 1; // 成果描述加成
-            internshipScore += Math.min(itemScore, 5); // 单条最高5分
-        }
+        // 项目经验：每个3分基础分 + 成果描述1分 + 高水平项目1分
+        const projectScore = exp.projectCount * 3;
+        const projectBonus = exp.hasAchievement ? exp.projectCount : 0;
+        const projectQualityBonus = exp.hasDuration ? exp.projectCount : 0;
         
-        // 项目评分
-        for (let i = 0; i < exp.projectCount; i++) {
-            let itemScore = 3; // 基础分
-            if (exp.hasDuration) itemScore += 1; // 时间描述加成
-            if (exp.hasAchievement) itemScore += 1; // 成果描述加成
-            projectScore += Math.min(itemScore, 5); // 单条最高5分
-        }
-        
-        details.internship = internshipScore;
-        details.project = projectScore;
-        
-        total = internshipScore + projectScore;
+        total = internshipScore + internshipBonus + internshipCompanyBonus + 
+                projectScore + projectBonus + projectQualityBonus;
         
         return {
-            total: Math.min(total, this.maxScores.experience), // 基础分限制25分
-            details: details,
-            maxScores: { internship: 50, project: 50 } // 修正：移除quality
+            total: Math.min(total, this.maxScores.experience),
+            details: {
+                internship: internshipScore + internshipBonus + internshipCompanyBonus,
+                project: projectScore + projectBonus + projectQualityBonus,
+                quality: (exp.hasAchievement ? 1 : 0) + (exp.hasCompanyName ? 1 : 0) + (exp.hasDuration ? 1 : 0)
+            },
+            maxScore: this.maxScores.experience
         };
     }
     
-    // 奖励荣誉评分 (15分) - 每条1分
+    // 奖励荣誉评分
     scoreAchievementsDetailed(analysis) {
         const details = {};
         let total = 0;
         const ach = analysis.achievements;
         
-        // 每项荣誉1分
-        details.scholarship = ach.scholarshipCount;
-        total += details.scholarship;
+        // 奖学金和荣誉（最高6分）
+        const scholarshipHonorScore = Math.min((ach.scholarshipCount + ach.honorCount) * 1.5, 6);
+        details.scholarshipHonor = scholarshipHonorScore;
+        total += scholarshipHonorScore;
         
-        details.competition = ach.competitionCount;
+        // 竞赛获奖（最高6分）
+        details.competition = Math.min(ach.competitionCount * 2, 6);
         total += details.competition;
         
-        details.certificate = ach.certificateCount;
+        // 证书认证（最高2分）
+        details.certificate = Math.min(ach.certificateCount * 0.5, 2);
         total += details.certificate;
         
+        // 领导经历（最高1分）
         details.leadership = ach.hasLeadership ? 1 : 0;
         total += details.leadership;
         
-        details.paper = ach.paperCount;
-        total += details.paper;
-        
-        details.patent = ach.patentCount;
-        total += details.patent;
-        
-        details.software = ach.softwareCount;
-        total += details.software;
-        
         return {
-            total: Math.min(total, this.maxScores.achievements), // 基础分限制15分
+            total: Math.min(total, this.maxScores.achievements),
             details: details,
-            maxScores: { scholarship: 99, competition: 99, certificate: 99, leadership: 1, paper: 99, patent: 99, software: 99 }
+            maxScores: { scholarshipHonor: 6, competition: 6, certificate: 2, leadership: 1 }
         };
     }
     
-    // 岗位推荐 - 考虑专业匹配
+    // 岗位推荐
     recommendJobs(analysis, specializations = []) {
         const jobs = [];
         const skills = analysis.skills;
         const education = analysis.education;
         
+        // 根据专业背景调整推荐
+        const majorJobMatch = this.calculateMajorJobMatch(analysis.education, skills);
+        
         // 1. 技术开发类
         if (skills.programming && skills.programming.length > 0) {
-            let match = Math.min(75 + skills.programming.length * 3, 95);
-            // 专业匹配加成
-            if (this.isComputerMajor(education)) match += 10;
-            
             jobs.push({
                 category: '软件开发工程师',
-                match: Math.min(match, 100),
-                reason: `掌握${skills.programming.slice(0, 3).join('、')}等编程技能${this.isComputerMajor(education) ? '，专业对口' : ''}`
+                match: Math.min(75 + skills.programming.length * 3, 95) * majorJobMatch.tech,
+                reason: `掌握${skills.programming.slice(0, 3).join('、')}等编程技能`
             });
         }
         
         // 2. 数据分析类
         if (skills.data && skills.data.length > 0) {
-            let match = Math.min(70 + skills.data.length * 4, 90);
-            if (this.isDataMajor(education)) match += 10;
-            
             jobs.push({
                 category: '数据分析师',
-                match: Math.min(match, 100),
-                reason: `具备${skills.data.slice(0, 3).join('、')}等数据处理能力${this.isDataMajor(education) ? '，专业对口' : ''}`
+                match: Math.min(70 + skills.data.length * 4, 90) * majorJobMatch.data,
+                reason: `具备${skills.data.slice(0, 3).join('、')}等数据处理能力`
             });
         }
         
         // 3. 产品设计类
         if (skills.design && skills.design.length > 0) {
-            let match = Math.min(65 + skills.design.length * 5, 88);
-            if (this.isDesignMajor(education)) match += 10;
-            
             jobs.push({
                 category: '产品设计师',
-                match: Math.min(match, 100),
-                reason: `熟练使用${skills.design.slice(0, 3).join('、')}等设计工具${this.isDesignMajor(education) ? '，专业对口' : ''}`
+                match: Math.min(65 + skills.design.length * 5, 88) * majorJobMatch.design,
+                reason: `熟练使用${skills.design.slice(0, 3).join('、')}等设计工具`
             });
         }
         
         // 4. 工程技术类
         if (skills.engineering && skills.engineering.length > 0) {
-            let match = Math.min(60 + skills.engineering.length * 6, 85);
-            if (this.isEngineeringMajor(education)) match += 15;
-            
             jobs.push({
                 category: '工程技术岗位',
-                match: Math.min(match, 100),
-                reason: `掌握${skills.engineering.slice(0, 3).join('、')}等工程技术${this.isEngineeringMajor(education) ? '，专业对口' : ''}`
+                match: Math.min(60 + skills.engineering.length * 6, 85) * majorJobMatch.engineering,
+                reason: `掌握${skills.engineering.slice(0, 3).join('、')}等工程技术`
             });
         }
         
-        // 5. 金融商务类
-        if (skills.business && skills.business.length > 0) {
-            let match = Math.min(60 + skills.business.length * 4, 85);
-            if (this.isBusinessMajor(education)) match += 15;
-            
+        // 5. 商务运营类
+        if (skills.business && skills.business.length > 0 || analysis.experience.internshipCount > 0) {
             jobs.push({
-                category: '商务金融',
-                match: Math.min(match, 100),
-                reason: `具备商业思维和相关技能${this.isBusinessMajor(education) ? '，专业对口' : ''}`
+                category: '商务运营',
+                match: Math.min(60 + analysis.experience.internshipCount * 5, 85) * majorJobMatch.business,
+                reason: '具备商业思维和实习经验'
             });
         }
         
-        // 6. 学术研究类
-        const academicSignals = this.detectAcademicOrientation(analysis);
-        if (academicSignals.score > 0) {
-            jobs.push({
-                category: '学术研究/高校教师',
-                match: Math.min(60 + academicSignals.score, 95),
-                reason: academicSignals.reason
-            });
-        }
-        
-        // 7. 专精加成推荐
+        // 6. 专精加成推荐
         specializations.forEach(spec => {
-            if (spec.type === 'skills' && spec.level >= 30) {
+            if (spec.type === 'programming' && spec.level >= 6) {
                 jobs.push({
-                    category: '技术专家',
-                    match: 95,
-                    reason: `技能专精（掌握${spec.level}项技术）`
+                    category: '高级软件工程师',
+                    match: 90,
+                    reason: `编程技能专精（掌握${spec.level}项技术）`
                 });
             }
-            if (spec.type === 'achievements' && spec.level >= 10) {
+            if (spec.type === 'academic' && spec.level >= 3) {
                 jobs.push({
-                    category: '博士研究生/科研助理',
-                    match: 92,
-                    reason: `学术能力突出（${spec.level}项学术成果）`
+                    category: '研发工程师/科研助理',
+                    match: 88,
+                    reason: `学术能力突出（${spec.description}）`
                 });
             }
         });
         
-        // 8. 跨专业推荐
-        if (education.isCrossMajor) {
-            jobs.push({
-                category: '复合型岗位',
-                match: 70,
-                reason: '跨专业背景，适合需要复合能力的岗位'
-            });
-        }
-        
-        // 9. 兜底推荐
+        // 7. 兜底推荐
         if (jobs.length === 0) {
             if (education.schoolLevel >= 11) {
                 jobs.push({
@@ -1402,139 +1242,88 @@ class ResumeScorer {
         return uniqueJobs.sort((a, b) => b.match - a.match).slice(0, 4);
     }
     
-    // 专业匹配检测函数
-    isComputerMajor(education) {
-        const computerKeywords = ['计算机', '软件', '信息', '网络', '数据', '人工智能', 'AI'];
-        return education.degrees.some(degree => 
-            computerKeywords.some(keyword => degree.text.includes(keyword))
-        );
-    }
-    
-    isDataMajor(education) {
-        const dataKeywords = ['数据', '统计', '数学', '信息', '分析'];
-        return education.degrees.some(degree => 
-            dataKeywords.some(keyword => degree.text.includes(keyword))
-        );
-    }
-    
-    isDesignMajor(education) {
-        const designKeywords = ['设计', '美术', '艺术', '视觉', '交互'];
-        return education.degrees.some(degree => 
-            designKeywords.some(keyword => degree.text.includes(keyword))
-        );
-    }
-    
-    isEngineeringMajor(education) {
-        const engineeringKeywords = ['工程', '机械', '电子', '自动化', '材料', '化工', '土木', '建筑'];
-        return education.degrees.some(degree => 
-            engineeringKeywords.some(keyword => degree.text.includes(keyword))
-        );
-    }
-    
-    isBusinessMajor(education) {
-        const businessKeywords = ['经济', '管理', '金融', '会计', '市场', '商务', '工商', '财务'];
-        return education.degrees.some(degree => 
-            businessKeywords.some(keyword => degree.text.includes(keyword))
-        );
-    }
-    
-    // 检测学术导向
-    detectAcademicOrientation(analysis) {
-        let score = 0;
-        let reasons = [];
+    // 计算专业-岗位匹配度
+    calculateMajorJobMatch(education, skills) {
+        const majorText = education.majorMatch.majors ? 
+            education.majorMatch.majors.join(' ').toLowerCase() : '';
         
-        // 学历指标
-        if (analysis.education.degrees && analysis.education.degrees.some(d => d.degree === 'master')) {
-            score += 15;
-            reasons.push('研究生学历');
-        }
-        if (analysis.education.degrees && analysis.education.degrees.some(d => d.degree === 'phd')) {
-            score += 25;
-            reasons.push('博士学历');
-        }
-        
-        // 学校层次加成
-        if (analysis.education.schoolLevel >= 13) {
-            score += 10;
-            reasons.push('顶尖大学背景');
-        } else if (analysis.education.schoolLevel >= 11) {
-            score += 8;
-            reasons.push('一流大学背景');
-        }
-        
-        // GPA指标
-        if (analysis.education.gpa >= 3.7) {
-            score += 10;
-            reasons.push('优秀学术成绩');
-        }
-        
-        // 学术成果指标
-        if (analysis.achievements.competitionCount >= 2) {
-            score += 8;
-            reasons.push('多项学术竞赛获奖');
-        }
-        if (analysis.achievements.scholarshipCount >= 2) {
-            score += 8;
-            reasons.push('多次获得奖学金');
-        }
-        if (analysis.achievements.paperCount >= 1) {
-            score += 15;
-            reasons.push('有论文发表经历');
-        }
-        if (analysis.achievements.patentCount >= 1) {
-            score += 10;
-            reasons.push('有专利申请经历');
-        }
-        
-        return {
-            score: score,
-            reason: reasons.length > 0 ? reasons.join('，') + '，适合学术研究发展' : ''
+        const matchFactors = {
+            tech: 1.0,     // 默认匹配度
+            data: 1.0,
+            design: 1.0,
+            engineering: 1.0,
+            business: 1.0
         };
+        
+        // 根据专业调整匹配度
+        if (/(计算机|软件|信息|电子|通信)/.test(majorText)) {
+            matchFactors.tech = 1.0;
+            matchFactors.data = 0.9;
+            matchFactors.engineering = 0.8;
+            matchFactors.design = 0.7;
+            matchFactors.business = 0.6;
+        } else if (/(经济|金融|管理|商务)/.test(majorText)) {
+            matchFactors.business = 1.0;
+            matchFactors.data = 0.8;
+            matchFactors.tech = 0.6;
+            matchFactors.design = 0.6;
+            matchFactors.engineering = 0.4;
+        } else if (/(设计|艺术|美术)/.test(majorText)) {
+            matchFactors.design = 1.0;
+            matchFactors.business = 0.7;
+            matchFactors.tech = 0.6;
+            matchFactors.data = 0.5;
+            matchFactors.engineering = 0.4;
+        } else if (/(机械|土木|化工|材料)/.test(majorText)) {
+            matchFactors.engineering = 1.0;
+            matchFactors.tech = 0.7;
+            matchFactors.data = 0.6;
+            matchFactors.design = 0.5;
+            matchFactors.business = 0.5;
+        }
+        
+        return matchFactors;
     }
     
-    // 生成建议 - 关注全面性和丰富度
+    // 生成建议
     generateSuggestions(scores, analysis) {
         const suggestions = [];
         
-        const basicScore = typeof scores.basicInfo === 'object' ? scores.basicInfo.total : scores.basicInfo;
-        const eduScore = typeof scores.education === 'object' ? scores.education.total : scores.education;
-        const skillScore = typeof scores.skills === 'object' ? scores.skills.total : scores.skills;
-        const expScore = typeof scores.experience === 'object' ? scores.experience.total : scores.experience;
-        const achScore = typeof scores.achievements === 'object' ? scores.achievements.total : scores.achievements;
+        const basicScore = scores.basicInfo.total;
+        const eduScore = scores.education.total;
+        const skillScore = scores.skills.total;
+        const expScore = scores.experience.total;
+        const achScore = scores.achievements.total;
         
-        // 基于基础分的全面性建议
         if (basicScore < 8) {
-            suggestions.push('完善个人信息，确保联系方式、个人背景等信息完整准确');
+            suggestions.push('完善个人信息，建议至少填写5项基本信息');
         }
         
         if (eduScore < 20) {
             if (!analysis.education.hasGPA) {
-                suggestions.push('建议添加GPA或专业排名信息，展示学术表现');
-            }
-            if (!analysis.education.hasMajor) {
-                suggestions.push('明确专业信息，突出专业相关性');
+                suggestions.push('建议添加GPA或学业成绩信息');
             }
             suggestions.push('突出学校优势或专业特色');
         }
         
         if (skillScore < 15) {
-            suggestions.push('充实技能描述，增加与目标岗位相关的技能');
+            suggestions.push('增加与目标岗位相关的技能描述');
             suggestions.push('考虑获得相关技能认证或证书');
         }
         
         if (expScore < 15) {
-            suggestions.push('积累更多实习或项目经验');
+            suggestions.push('寻找更多实习或项目经验机会');
             suggestions.push('详细描述项目成果和个人贡献');
         }
         
         if (achScore < 8) {
-            suggestions.push('积极参加学术竞赛或获得奖学金');
+            suggestions.push('积极参加学术竞赛或申请奖学金');
             suggestions.push('争取担任学生干部或参与社团活动');
         }
         
-        // 专业化建议
-        if (analysis.education.isCrossMajor) {
-            suggestions.push('突出跨专业背景的优势，展示复合能力和学习适应性');
+        // 专业相关建议
+        if (analysis.education.majorMatch.type === 'cross_major') {
+            suggestions.push('跨专业发展很好，建议突出跨界能力优势');
         }
         
         // 特殊建议
@@ -1542,35 +1331,8 @@ class ResumeScorer {
             suggestions.push('充分利用名校背景，可考虑申请知名企业或继续深造');
         }
         
-        // 学术导向建议
-        if (analysis.achievements.paperCount > 0 || analysis.achievements.competitionCount >= 3) {
-            suggestions.push('考虑学术研究方向发展，申请研究生或科研岗位');
-        }
-        
-        // 技能专精建议
-        const topSkills = Object.entries(analysis.skills)
-            .filter(([key, value]) => Array.isArray(value) && value.length >= 3)
-            .sort(([,a], [,b]) => b.length - a.length);
-            
-        if (topSkills.length > 0) {
-            const [skillType] = topSkills[0];
-            const skillNames = {
-                'programming': '编程开发',
-                'data': '数据分析',
-                'design': '设计创作',
-                'engineering': '工程技术',
-                'business': '商务管理'
-            };
-            suggestions.push(`继续深化${skillNames[skillType] || skillType}技能，争取成为该领域专精人才`);
-        }
-        
-        // 经验丰富度建议
-        if (analysis.experience.internshipCount >= 3 || analysis.experience.projectCount >= 5) {
-            suggestions.push('实践经验丰富，建议突出核心项目和关键成果，提升经验质量');
-        }
-        
         if (suggestions.length === 0) {
-            suggestions.push('简历内容丰富全面！建议针对不同岗位进行定制化调整，突出相关性');
+            suggestions.push('简历质量很好！建议针对不同岗位定制化调整');
         }
         
         return suggestions;

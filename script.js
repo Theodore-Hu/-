@@ -415,10 +415,13 @@ function updateDetailedScores(categoryScores, baseScores, specializationBonus) {
     
     container.innerHTML = '';
     
-    Object.entries(categoryScores).forEach(([category, scoreData], index) => {
-        const categoryName = category
-        const categoryName = categoryInfo[category].name;
-        const subcategories = categoryInfo[category].subcategories;
+Object.entries(categoryScores).forEach(([category, scoreData], index) => {
+    const categoryName = categoryInfo[category].name;
+    const subcategories = categoryInfo[category].subcategories;
+    
+    const item = document.createElement('div');
+    item.className = 'score-item';
+    item.style.animationDelay = `${index * 0.1}s`;
         
         const item = document.createElement('div');
         item.className = 'score-item';

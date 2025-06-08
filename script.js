@@ -513,7 +513,7 @@ class ResumeScoreApp {
         return '#e53e3e';
     }
     
-    // 其余方法保持不变...
+    // 在 updateDetailedScores 方法中，找到处理 categorySpecializations 的部分，修改为：
     updateDetailedScores(categoryScores, specializations) {
         const container = document.getElementById('scoreCategories');
         const categoryInfo = {
@@ -581,16 +581,22 @@ class ResumeScoreApp {
             const baseScore = scoreData.total;
             const maxScore = this.getMaxScore(category);
             
-            const categorySpecializations = specializations.filter(spec => {
-                if (category === 'skills') {
-                    return spec.category === 'skill';
-                } else if (category === 'experience') {
-                    return spec.category === 'experience';
-                }
-                return false;
-            });
+            // 处理专精逻辑
+            let categorySpecializations = [];
+            let specializationBonus = 0;
             
-            const specializationBonus = categorySpecializations.reduce((sum, spec) => sum + spec.bonus, 0);
+            if (category === 'skills') {
+                categorySpecializations = specializations.filter(spec => spec.category === 'skill');
+                specializationBonus = categorySpecializations.reduce((sum, spec) => sum + spec.bonus, 0);
+            } else if (category === 'experience') {
+                categorySpecializations = specializations.filter(spec => spec.category === 'experience');
+                specializationBonus = categorySpecializations.reduce((sum, spec) => sum + spec.bonus, 0);
+            } else if (category === 'achievements') {
+                // 奖励荣誉专精处理
+                categorySpecializations = specializations.filter(spec => spec.category === 'achievement');
+                specializationBonus = categorySpecializations.reduce((sum, spec) => sum + spec.bonus, 0);
+            }
+            
             const displayScore = baseScore + specializationBonus;
             const hasSpecialization = specializationBonus > 0;
             
@@ -653,7 +659,7 @@ class ResumeScoreApp {
                 <div class="category-detail" id="detail-${category}" style="display: none;">
                     <h4>详细评分明细</h4>
                     <div class="subcategory-list">
-                        ${this.generateSubcategoryHTML(scoreData, subcategories, category)}
+                        ${this.generateSubcategoryHTML(scoreData, subcategories, category, categorySpecializations)}
                     </div>
                     ${hasSpecialization ? 
                         `<div class="specialization-explanation">
@@ -685,6 +691,7 @@ class ResumeScoreApp {
             
             container.appendChild(item);
             
+            // 进度条动画
             setTimeout(() => {
                 const baseFill = item.querySelector('.base-progress');
                 if (baseFill) {
@@ -703,7 +710,7 @@ class ResumeScoreApp {
         });
     }
     
-    generateSubcategoryHTML(scoreData, subcategories, category) {
+    generateSubcategoryHTML(scoreData, subcategories, category, categorySpecializations = []) {
         if (!scoreData.details) {
             return `
                 <div class="empty-subcategory">
@@ -711,6 +718,12 @@ class ResumeScoreApp {
                     <span class="empty-text">暂无详细评分数据</span>
                 </div>
             `;
+        }
+        
+        // 如果是奖励荣誉类别，需要显示超出分数的细项
+        let extraScoreInfo = {};
+        if (category === 'achievements' && scoreData.extraScore) {
+            extraScoreInfo = scoreData.extraScore;
         }
         
         let html = '';
@@ -723,7 +736,34 @@ class ResumeScoreApp {
             } else if (category === 'achievements') {
                 // 奖励荣誉特殊处理
                 score = scoreData.details[key] || 0;
-                maxScore = scoreData.subMaxScores?.[key] || 5; // 默认5分
+                maxScore = scoreData.subMaxScores?.[key] || 5;
+                
+                // 检查是否有超出分数
+                const hasExtraScore = extraScoreInfo[key] && extraScoreInfo[key] > 0;
+                
+                html += `
+                    <div class="subcategory-item ${hasExtraScore ? 'has-specialization' : ''}">
+                        <div class="subcategory-info">
+                            <span class="subcategory-name">
+                                ${name}
+                                ${hasExtraScore ? '<span class="sub-spec-badge">⭐</span>' : ''}
+                            </span>
+                            <span class="subcategory-max">满分${maxScore}</span>
+                        </div>
+                        <div class="subcategory-progress-container">
+                            <div class="subcategory-progress">
+                                <div class="subcategory-progress-fill" 
+                                     style="width: 0%" 
+                                     data-target="100">
+                                </div>
+                            </div>
+                            <span class="subcategory-score excellent">
+                                ${score}${hasExtraScore ? `<small>+${extraScoreInfo[key]}</small>` : ''}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                return; // 跳过后面的通用处理
             } else {
                 score = scoreData.details[key] || 0;
                 if (category === 'education') {

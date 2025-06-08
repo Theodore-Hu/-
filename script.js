@@ -1,4 +1,4 @@
-// 应用程序主类
+// 应用程序主类 - 修正版
 class ResumeScoreApp {
     constructor() {
         this.currentAnalysis = null;
@@ -132,18 +132,6 @@ class ResumeScoreApp {
             };
             clearTimeout(timeout);
             timeout = setTimeout(later, wait);
-        };
-    }
-    
-    // 节流函数
-    throttle(func, limit) {
-        let inThrottle;
-        return function(...args) {
-            if (!inThrottle) {
-                func.apply(this, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
-            }
         };
     }
     
@@ -400,10 +388,7 @@ class ResumeScoreApp {
         // 按类别分组显示专精信息
         const categoryMap = {
             skill: '🔧 技能专精',
-            education: '🎓 教育专精',
-            academic: '📚 学术专精',
-            experience: '💼 实践专精',
-            achievement: '🏆 成就专精'
+            experience: '💼 实践专精'
         };
         
         const groupedSpecs = {};
@@ -438,51 +423,51 @@ class ResumeScoreApp {
         container.appendChild(specDiv);
     }
     
-    // 支持超过100分的等级系统
+    // 支持超过100分的等级系统 - 修正版
     getScoreLevel(score) {
-        if (score >= 130) {
+        if (score >= 140) {
             return {
                 text: '传奇',
                 color: '#9c27b0',
                 summary: '全能型专精人才，简历质量卓越超群！'
             };
-        } else if (score >= 120) {
+        } else if (score >= 130) {
             return {
                 text: '卓越',
                 color: '#9f7aea',
                 summary: '多项专精突出，简历质量超群！'
             };
-        } else if (score >= 110) {
+        } else if (score >= 120) {
             return {
                 text: '优秀专精',
                 color: '#667eea',
                 summary: '专精优势明显，简历质量优异！'
             };
-        } else if (score >= 100) {
+        } else if (score >= 110) {
             return {
                 text: '专精发展',
                 color: '#5a67d8',
                 summary: '开始展现专精特质，发展潜力大！'
             };
-        } else if (score >= 85) {
+        } else if (score >= 90) {
             return {
                 text: '优秀',
                 color: '#48bb78',
                 summary: '简历质量很高，可以冲击知名企业！'
             };
-        } else if (score >= 70) {
+        } else if (score >= 75) {
             return {
                 text: '良好',
                 color: '#38a169',
                 summary: '简历整体不错，稍作完善就很棒了'
             };
-        } else if (score >= 55) {
+        } else if (score >= 60) {
             return {
                 text: '中等',
                 color: '#ed8936',
                 summary: '简历有一定亮点，还有提升空间'
             };
-        } else if (score >= 40) {
+        } else if (score >= 45) {
             return {
                 text: '及格',
                 color: '#dd6b20',
@@ -504,7 +489,7 @@ class ResumeScoreApp {
         return '#e53e3e';
     }
     
-    // 更新详细评分 - 重点修改这个方法
+    // 更新详细评分
     updateDetailedScores(categoryScores, specializations) {
         const container = document.getElementById('scoreCategories');
         const categoryInfo = {
@@ -577,12 +562,8 @@ class ResumeScoreApp {
             const categorySpecializations = specializations.filter(spec => {
                 if (category === 'skills') {
                     return spec.category === 'skill';
-                } else if (category === 'education') {
-                    return spec.category === 'education';
                 } else if (category === 'experience') {
                     return spec.category === 'experience';
-                } else if (category === 'achievements') {
-                    return spec.category === 'academic' || spec.category === 'achievement';
                 }
                 return false;
             });
@@ -630,7 +611,7 @@ class ResumeScoreApp {
                                             <span class="legend-color bonus"></span>
                                             专精 +${specializationBonus}
                                          </span>` : ''}
-                                    <span class="legend-max">/${maxScore}</span>
+                                    <span class="legend-max">/${maxScore}${category === 'education' && baseScore > maxScore ? '*' : ''}</span>
                                 </div>
                             </div>
                         </div>
@@ -673,6 +654,10 @@ class ResumeScoreApp {
                                     <span class="boost-value">+${specializationBonus} 分</span>
                                 </div>
                             </div>
+                         </div>` : ''}
+                    ${category === 'education' && baseScore > maxScore ? 
+                        `<div class="education-note">
+                            <p><strong>注：</strong>教育背景因多学位获得超分奖励，这体现了您在学术深造方面的优异表现！</p>
                          </div>` : ''}
                 </div>
             `;
@@ -719,11 +704,20 @@ class ResumeScoreApp {
                 maxScore = 2;
             } else {
                 score = scoreData.details[key] || 0;
-                maxScore = scoreData.maxScores?.[key] || 1;
+                if (category === 'education') {
+                    const maxScoreMap = {
+                        school: 15,
+                        academic: 5,
+                        degree: '不限'
+                    };
+                    maxScore = maxScoreMap[key] || 1;
+                } else {
+                    maxScore = scoreData.maxScores?.[key] || 1;
+                }
             }
             
-            const percentage = Math.min((score / maxScore) * 100, 100);
-            const subGrade = this.getScoreGrade(score, maxScore);
+            const percentage = maxScore === '不限' ? Math.min((score / 10) * 100, 100) : Math.min((score / maxScore) * 100, 100);
+            const subGrade = this.getScoreGrade(score, maxScore === '不限' ? 10 : maxScore);
             
             html += `
                 <div class="subcategory-item">
@@ -751,7 +745,7 @@ class ResumeScoreApp {
     
     // 获取分数等级
     getScoreGrade(score, maxScore) {
-        const percentage = (score / maxScore) * 100;
+        const percentage = maxScore === '不限' ? (score >= 5 ? 85 : score * 17) : (score / maxScore) * 100;
         
         if (percentage >= 85) {
             return {
@@ -885,6 +879,18 @@ class ResumeScoreApp {
             
             container.appendChild(item);
         });
+    }
+    
+    // 更新最大分数
+    getMaxScore(category) {
+        const maxScores = {
+            basicInfo: 10,
+            education: 25,
+            skills: 20,
+            experience: 30,
+            achievements: 15
+        };
+        return maxScores[category] || 10;
     }
     
     // Toast 通知系统
@@ -1070,8 +1076,13 @@ class ResumeScoreApp {
             const score = scoreData.total;
             const maxScore = this.getMaxScore(category);
             
-            report += `- ${categoryNames[category]}: ${score}/${maxScore}分
+            if (category === 'education' && score > maxScore) {
+                report += `- ${categoryNames[category]}: ${score}/${maxScore}分 (超分奖励)
 `;
+            } else {
+                report += `- ${categoryNames[category]}: ${score}/${maxScore}分
+`;
+            }
         });
         
         report += `
@@ -1098,18 +1109,6 @@ class ResumeScoreApp {
 建议结合个人实际情况和目标岗位要求进行参考`;
         
         return report;
-    }
-    
-    // 获取最大分数
-    getMaxScore(category) {
-        const maxScores = {
-            basicInfo: 10,
-            education: 30,
-            skills: 20,      // 修改为20分
-            experience: 25,  // 修改为25分
-            achievements: 15
-        };
-        return maxScores[category] || 10;
     }
     
     // 清理事件监听器
@@ -1258,10 +1257,8 @@ window.addEventListener('beforeunload', function() {
 // 页面可见性改变时的处理
 document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
-        // 页面隐藏时暂停某些操作
         console.log('页面隐藏');
     } else {
-        // 页面重新可见时恢复操作
         console.log('页面可见');
     }
 });

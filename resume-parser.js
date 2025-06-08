@@ -1,19 +1,10 @@
-// 配置 PDF.js worker
-if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-}
-
 // 简历解析器
 class ResumeParser {
+    // PDF解析
     static async parsePDF(file) {
         try {
-            if (typeof pdfjsLib === 'undefined') {
-                throw new Error('PDF.js库未加载，请刷新页面重试');
-            }
-            
             const arrayBuffer = await file.arrayBuffer();
-            const loadingTask = pdfjsLib.getDocument(arrayBuffer);
-            const pdf = await loadingTask.promise;
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
             let fullText = '';
             
             for (let i = 1; i <= pdf.numPages; i++) {
@@ -23,29 +14,24 @@ class ResumeParser {
                 fullText += pageText + '\n';
             }
             
-            return fullText.trim();
+            return fullText;
         } catch (error) {
-            console.error('PDF解析错误:', error);
-            throw new Error('PDF解析失败，请确保文件没有密码保护：' + error.message);
+            throw new Error('PDF解析失败: ' + error.message);
         }
     }
-}
     
+    // Word文档解析
     static async parseWord(file) {
         try {
-            if (typeof mammoth === 'undefined') {
-                throw new Error('Word解析库未加载，请刷新页面重试');
-            }
-            
             const arrayBuffer = await file.arrayBuffer();
             const result = await mammoth.extractRawText({ arrayBuffer });
             return result.value;
         } catch (error) {
-            console.error('Word解析错误:', error);
             throw new Error('Word文档解析失败: ' + error.message);
         }
     }
     
+    // 统一解析入口
     static async parseFile(file) {
         const fileType = file.type;
         const fileName = file.name.toLowerCase();
@@ -71,231 +57,89 @@ class ResumeScorer {
             achievements: 10
         };
         
-        // 重新设计学校分级体系
+        // 完善学校分级 - 添加更多985/211学校
         this.schoolRanks = {
-            // 顶尖大学（15分）
-            topTier: [
-                '清华大学', '北京大学', '清华', '北大',
+            top2: ['清华', '北大', '清华大学', '北京大学'],
+            top985: [
+                '复旦', '上海交通', '浙江大学', '中国科学技术大学', '南京大学', 
+                '西安交通', '哈尔滨工业', '中国人民大学', '北京理工', '北京航空',
+                '东南大学', '华中科技', '中南大学', '电子科技大学', '重庆大学', 
+                '大连理工', '吉林大学', '厦门大学', '山东大学', '华南理工',
+                '北京师范', '同济大学', '天津大学', '南开大学', '中山大学',
+                '西北工业', '华东师范', '中国农业', '国防科技', '中央民族',
+                '兰州大学', '东北大学', '湖南大学', '中国海洋', '西北农林'
             ],
-            
-            // 一流大学A类（13分）- 顶尖985 + 新兴优秀
-            tier1A: [
-                // 传统顶尖985
-                '复旦大学', '上海交通大学', '浙江大学', '中国科学技术大学', '南京大学',
-                '西安交通大学', '哈尔滨工业大学', '中国人民大学', '北京理工大学', '北京航空航天大学',
-                '东南大学', '华中科技大学', '中山大学', '天津大学', '同济大学',
-                '北京师范大学', '南开大学', '西北工业大学', '华东师范大学',
-                // 新兴优秀大学
-                '南方科技大学', '西湖大学', '上海科技大学', '深圳大学', '苏州大学'
-                '中国科学院大学', '国科大', '中科院大学'
-            ],
-            
-            // 一流大学B类（11分）- 普通985 + 特色强校
-            tier1B: [
-                // 普通985
-                '中南大学', '电子科技大学', '重庆大学', '大连理工大学', '吉林大学',
-                '厦门大学', '山东大学', '华南理工大学', '中国农业大学', '国防科技大学',
-                '中央民族大学', '兰州大学', '东北大学', '湖南大学', '中国海洋大学', '西北农林科技大学',
-                // 特色强校
-                '北京邮电大学', '华东理工大学', '西安电子科技大学', '北京科技大学',
-                '中南财经政法大学', '上海财经大学', '对外经济贸易大学', '西南财经大学',
-                '中央财经大学', '华中师范大学', '华南师范大学', '陕西师范大学',
-                '华中农业大学', '南京农业大学', '中国药科大学', '北京中医药大学',
-                '中国传媒大学', '北京外国语大学', '上海外国语大学'
-            ],
-            
-            // 一流学科大学（9分）- 211 + 双一流学科建设
-            tier2: [
-                // 传统211
-                '北京交通大学', '北京工业大学', '北京化工大学', '中国石油大学', '中国地质大学',
-                '中国矿业大学', '河海大学', '江南大学', '南京理工大学', '南京航空航天大学',
-                '安徽大学', '合肥工业大学', '福州大学', '南昌大学', '郑州大学',
-                '湖南师范大学', '暨南大学', '广西大学', '海南大学', '四川大学',
-                '西南交通大学', '贵州大学', '云南大学', '西北大学', '长安大学',
-                '青海大学', '宁夏大学', '新疆大学', '石河子大学', '延边大学',
-                '内蒙古大学', '辽宁大学', '大连海事大学', '东北师范大学', '哈尔滨工程大学',
-                '东北农业大学', '东北林业大学', '上海大学',
-                // 双一流学科建设高校
-                '首都师范大学', '天津工业大学', '天津医科大学', '华北电力大学',
-                '太原理工大学', '内蒙古农业大学', '沈阳农业大学', '东北石油大学',
-                '哈尔滨理工大学', '燕山大学', '江苏大学', '南京邮电大学',
-                '浙江工业大学', '安徽理工大学', '江西财经大学', '河南大学',
-                '华南农业大学', '广州中医药大学', '桂林电子科技大学', '西南石油大学',
-                '成都理工大学', '西南大学', '昆明理工大学', '西北师范大学'
-            ],
-            
-            // 优质本科（6分）- 省属重点、行业特色
-            tier3: [
-                '杭州电子科技大学', '宁波大学', '江苏科技大学', '南京信息工程大学',
-                '浙江理工大学', '温州医科大学', '广东工业大学', '汕头大学',
-                '华东政法大学', '上海理工大学', '首都医科大学', '重庆邮电大学',
-                '西安建筑科技大学', '长沙理工大学', '湘潭大学', '扬州大学',
-                '江西理工大学', '河北工业大学', '天津师范大学', '山西大学',
-                '河南理工大学', '河南师范大学', '湖北大学', '武汉科技大学',
-                '长江大学', '三峡大学', '湖南科技大学', '广州大学', '深圳技术大学'
+            c211: [
+                '北京交通', '北京工业', '北京科技', '北京化工', '北京邮电',
+                '华北电力', '中国石油', '中国地质', '中国矿业', '华东理工',
+                '河海大学', '江南大学', '南京农业', '中国药科', '南京理工',
+                '南京航空', '苏州大学', '安徽大学', '合肥工业', '福州大学',
+                '南昌大学', '郑州大学', '华中农业', '华中师范', '中南财经',
+                '湖南师范', '暨南大学', '华南师范', '广西大学', '海南大学',
+                '四川大学', '西南交通', '西南财经', '贵州大学', '云南大学',
+                '西北大学', '西安电子', '长安大学', '陕西师范', '青海大学',
+                '宁夏大学', '新疆大学', '石河子', '延边大学', '内蒙古大学',
+                '辽宁大学', '大连海事', '东北师范', '哈尔滨工程', '东北农业',
+                '东北林业', '上海财经', '上海大学', '第二军医', '第四军医'
             ]
         };
         
         // 扩展技能关键词库
         this.skillKeywords = {
             programming: [
-                'Java', 'Python', 'JavaScript', 'C++', 'C#', 'Go', 'Rust', 'Swift', 'Kotlin',
-                'React', 'Vue', 'Angular', 'Node.js', 'Spring', 'Django', 'Flask', 'Express',
-                '前端', '后端', '全栈', '编程', '开发', '程序设计', 'HTML', 'CSS', 'PHP',
-                'TypeScript', 'jQuery', 'Bootstrap', 'Webpack', 'Git', 'Linux', 'Docker',
-                'Kubernetes', 'Redis', 'Nginx', 'Apache', 'MVC', 'API', 'RESTful', 'GraphQL'
+                'Java', 'Python', 'JavaScript', 'C++', 'C#', 'Go', 'Rust', 'Swift',
+                'React', 'Vue', 'Angular', 'Node.js', 'Spring', 'Django', 'Flask',
+                '前端', '后端', '全栈', '编程', '开发', '程序设计', 'HTML', 'CSS',
+                'TypeScript', 'jQuery', 'Bootstrap', 'Webpack', 'Git', 'Linux',
+                'Docker', 'Kubernetes', 'Redis', 'Nginx', 'Apache', 'MVC', 'API'
             ],
             design: [
-                'Photoshop', 'Illustrator', 'Sketch', 'Figma', 'XD', 'Axure', 'Principle',
-                'UI', 'UX', '平面设计', '交互设计', '视觉设计', '用户体验', '用户界面',
-                '界面设计', '原型设计', '设计思维', 'Premiere', 'After Effects', 'Cinema 4D',
-                '美工', '创意设计', '品牌设计', '包装设计', '网页设计', '移动端设计'
+                'Photoshop', 'Illustrator', 'Sketch', 'Figma', 'XD', 'Axure',
+                'UI', 'UX', '平面设计', '交互设计', '视觉设计', '用户体验',
+                '界面设计', '原型设计', '设计思维', 'Premiere', 'After Effects',
+                '美工', '创意设计', '品牌设计', '包装设计'
             ],
             data: [
-                'SQL', 'MySQL', 'MongoDB', 'PostgreSQL', 'Oracle', 'Excel', 'Tableau',
-                'SPSS', 'R语言', 'MATLAB', 'Power BI', 'Spark', 'Hadoop', 'Hive',
-                '数据分析', '数据挖掘', '数据可视化', '机器学习', '深度学习', '人工智能',
-                'TensorFlow', 'PyTorch', '统计分析', '数据库', '大数据', 'ETL',
-                'Pandas', 'NumPy', 'scikit-learn', 'Jupyter', 'Apache Kafka'
+                'SQL', 'MySQL', 'MongoDB', 'PostgreSQL', 'Oracle', 'Excel',
+                'SPSS', 'R语言', 'MATLAB', 'Tableau', 'Power BI', 'Spark',
+                '数据分析', '数据挖掘', '数据可视化', '机器学习', '深度学习',
+                'TensorFlow', 'PyTorch', '统计分析', '数据库', '大数据',
+                'Hadoop', 'Hive', 'Pandas', 'NumPy', 'scikit-learn'
             ],
             business: [
-                '市场营销', '项目管理', '商业分析', '财务分析', '运营', '策划', '咨询',
-                'PPT', '团队管理', '客户服务', '销售', '商务谈判', '品牌推广', '市场调研',
-                '内容运营', '用户运营', '活动策划', '文案写作', '新媒体', '短视频',
-                '电商运营', '社群运营', '产品运营', 'CRM', 'ERP', 'SaaS', '增长黑客'
+                '市场营销', '项目管理', '商业分析', '财务分析', '运营', '策划',
+                'PPT', '团队管理', '客户服务', '销售', '商务谈判', '品牌推广',
+                '内容运营', '用户运营', '活动策划', '文案写作', '新媒体',
+                '电商运营', '社群运营', '产品运营', 'CRM', 'ERP'
             ],
             language: [
-                '英语', '日语', '韩语', '德语', '法语', '西班牙语', '俄语', '阿拉伯语',
-                '四级', '六级', '雅思', '托福', 'GRE', 'GMAT', 'CET', 'BEC',
-                'IELTS', 'TOEFL', '口语', '翻译', '同声传译', '商务英语'
+                '英语', '日语', '韩语', '德语', '法语', '西班牙语', '俄语',
+                '四级', '六级', '雅思', '托福', 'GRE', 'GMAT', 'CET',
+                'IELTS', 'TOEFL', '口语', '翻译', '同声传译'
             ],
             office: [
-                'Office', 'Word', 'Excel', 'PowerPoint', 'Access', 'Outlook', 'OneNote',
-                'WPS', '办公软件', '文档处理', '表格制作', '演示文稿', 'VBA', '数据透视表'
-            ],
-            engineering: [
-                'CAD', 'AutoCAD', 'SolidWorks', 'Pro/E', 'UG', 'CATIA', 'Inventor',
-                'ANSYS', 'ABAQUS', 'COMSOL', '有限元', '仿真', '建模', '测试', '实验设计',
-                'LabVIEW', 'Altium Designer', 'Keil', 'Quartus', 'Vivado', 'FPGA'
+                'Office', 'Word', 'Excel', 'PowerPoint', 'Access', 'Outlook',
+                'WPS', '办公软件', '文档处理', '表格制作', '演示文稿'
             ]
         };
-    }
-    
-    // 检测专精类型
-    detectSpecialization(analysis) {
-        const specializations = [];
-        
-        // 技能专精检测
-        const skills = analysis.skills;
-        if (skills.programming.length >= 5) {
-            specializations.push({
-                type: 'programming',
-                level: skills.programming.length,
-                bonus: Math.min(skills.programming.length - 3, 8)
-            });
-        }
-        
-        if (skills.data.length >= 3) {
-            specializations.push({
-                type: 'data',
-                level: skills.data.length,
-                bonus: Math.min(skills.data.length - 2, 6)
-            });
-        }
-        
-        if (skills.design.length >= 3) {
-            specializations.push({
-                type: 'design',
-                level: skills.design.length,
-                bonus: Math.min(skills.design.length - 2, 6)
-            });
-        }
-        
-        if (skills.engineering && skills.engineering.length >= 3) {
-            specializations.push({
-                type: 'engineering',
-                level: skills.engineering.length,
-                bonus: Math.min(skills.engineering.length - 2, 6)
-            });
-        }
-        
-        // 学术专精检测
-        if (analysis.achievements.competitionCount >= 3 || 
-            analysis.achievements.scholarshipCount >= 2) {
-            specializations.push({
-                type: 'academic',
-                level: analysis.achievements.competitionCount + analysis.achievements.scholarshipCount,
-                bonus: 5
-            });
-        }
-        
-        // 实践专精检测
-        if (analysis.experience.projectCount >= 4 || 
-            analysis.experience.internshipCount >= 3) {
-            specializations.push({
-                type: 'practical',
-                level: analysis.experience.projectCount + analysis.experience.internshipCount,
-                bonus: 4
-            });
-        }
-        
-        return specializations;
-    }
-    
-    // 应用专精加成
-    applySpecializationBonus(scores, specializations) {
-        const enhancedScores = JSON.parse(JSON.stringify(scores));
-        
-        specializations.forEach(spec => {
-            switch(spec.type) {
-                case 'programming':
-                case 'data':
-                case 'design':
-                case 'engineering':
-                    enhancedScores.skills.total = Math.min(
-                        enhancedScores.skills.total + spec.bonus, 
-                        this.maxScores.skills + 8
-                    );
-                    break;
-                case 'academic':
-                    enhancedScores.achievements.total = Math.min(
-                        enhancedScores.achievements.total + spec.bonus,
-                        this.maxScores.achievements + 5
-                    );
-                    break;
-                case 'practical':
-                    enhancedScores.experience.total = Math.min(
-                        enhancedScores.experience.total + spec.bonus,
-                        this.maxScores.experience + 5
-                    );
-                    break;
-            }
-        });
-        
-        return enhancedScores;
     }
     
     // 主评分函数
     scoreResume(text) {
         const analysis = this.analyzeResume(text);
         const scores = this.calculateScores(analysis);
+        const suggestions = this.generateSuggestions(scores, analysis);
+        const jobRecommendations = this.recommendJobs(analysis);
         
-        // 检测专精并应用加成
-        const specializations = this.detectSpecialization(analysis);
-        const enhancedScores = this.applySpecializationBonus(scores, specializations);
-        
-        const suggestions = this.generateSuggestions(enhancedScores, analysis);
-        const jobRecommendations = this.recommendJobs(analysis, specializations);
-        
-        const totalScore = Object.values(enhancedScores).reduce((sum, scoreObj) => {
+        // 修复：正确计算总分
+        const totalScore = Object.values(scores).reduce((sum, scoreObj) => {
             return sum + (typeof scoreObj === 'object' ? scoreObj.total : scoreObj);
         }, 0);
         
         return {
             totalScore: Math.min(Math.round(totalScore), 100),
-            categoryScores: enhancedScores,
+            categoryScores: scores,
             analysis: analysis,
-            specializations: specializations,
             suggestions: suggestions,
             jobRecommendations: jobRecommendations
         };
@@ -326,29 +170,34 @@ class ResumeScorer {
         return namePatterns.some(pattern => pattern.test(text)) || text.length > 50;
     }
     
-    // 改进教育背景分析
+    // 改进教育背景分析 - 考虑第一学历
     analyzeEducation(text) {
         const education = {
             schoolLevel: 0,
             hasGPA: /GPA|绩点|平均分|成绩/.test(text),
             gpa: this.extractGPA(text),
-            hasMajor: /(专业|学院|系|计算机|软件|电子|机械|经济|金融|管理|文学|理学|工学|医学|法学|教育学|艺术学|农学)/.test(text),
+            hasMajor: /(专业|学院|系|计算机|软件|电子|机械|经济|金融|管理|文学|理学|工学)/.test(text),
             isRelevant: false,
             degrees: this.extractDegrees(text)
         };
         
+        // 学校层次判断 - 考虑第一学历
         education.schoolLevel = this.calculateSchoolScore(text, education.degrees);
         
         return education;
     }
     
-    // 提取学历信息
+    // 新增：提取学历信息的方法
     extractDegrees(text) {
         const degrees = [];
         
+        // 匹配学历信息的正则模式
         const patterns = [
+            // 本科：学校名 + 本科/学士
             /([^。\n]*?大学|[^。\n]*?学院|[^。\n]*?科技|[^。\n]*?理工)[^。\n]*?(本科|学士|bachelor)/gi,
+            // 研究生：学校名 + 研究生/硕士/博士
             /([^。\n]*?大学|[^。\n]*?学院|[^。\n]*?科技|[^。\n]*?理工)[^。\n]*?(研究生|硕士|博士|master|phd|doctor)/gi,
+            // 通用格式：时间 + 学校 + 学历
             /(20\d{2}[年\-\.]*20\d{2}|20\d{2}[年\-\.]*).*?([^。\n]*?大学|[^。\n]*?学院)[^。\n]*?(本科|研究生|硕士|博士)/gi
         ];
         
@@ -364,6 +213,7 @@ class ResumeScorer {
             }
         });
         
+        // 如果没有明确的学历信息，尝试从整体文本推断
         if (degrees.length === 0) {
             const schoolMatch = this.findSchoolInText(text);
             if (schoolMatch) {
@@ -378,6 +228,7 @@ class ResumeScorer {
         return degrees;
     }
     
+    // 清理学校名称
     cleanSchoolName(schoolText) {
         if (!schoolText) return '';
         return schoolText
@@ -386,6 +237,7 @@ class ResumeScorer {
             .trim();
     }
     
+    // 获取学历层次
     getDegreeLevel(degreeText) {
         if (/(博士|phd|doctor)/i.test(degreeText)) return 'phd';
         if (/(硕士|研究生|master)/i.test(degreeText)) return 'master';
@@ -393,42 +245,41 @@ class ResumeScorer {
         return 'unknown';
     }
     
+    // 从文本中查找学校
     findSchoolInText(text) {
         const allSchools = [
-            ...this.schoolRanks.topTier,
-            ...this.schoolRanks.tier1A,
-            ...this.schoolRanks.tier1B,
-            ...this.schoolRanks.tier2,
-            ...this.schoolRanks.tier3
+            ...this.schoolRanks.top2,
+            ...this.schoolRanks.top985,
+            ...this.schoolRanks.c211
         ];
         
         for (let school of allSchools) {
-            if (text.includes(school) || 
-                text.includes(school.replace('大学', '')) || 
-                text.includes(school.replace('学院', '')) ||
-                text.includes(school.replace('科技大学', '')) ||
-                text.includes(school.replace('理工大学', ''))) {
+            if (text.includes(school) || text.includes(school.replace('大学', '')) || text.includes(school.replace('学院', ''))) {
                 return school;
             }
         }
         
+        // 查找其他大学
         const universityMatch = text.match(/([^。\n]*?大学|[^。\n]*?学院)/);
         return universityMatch ? universityMatch[1] : null;
     }
     
+    // 推断学历层次
     inferDegreeLevel(text) {
         if (/(博士|phd|doctor)/i.test(text)) return 'phd';
         if (/(硕士|研究生|master|graduate)/i.test(text)) return 'master';
         if (/(专科|大专|高职)/i.test(text)) return 'associate';
-        return 'bachelor';
+        return 'bachelor'; // 默认本科
     }
     
-    // 新的学校评分系统
+    // 计算学校得分 - 考虑第一学历（50% + 50%权重）
     calculateSchoolScore(text, degrees) {
         if (degrees.length === 0) {
+            // 没有明确学历信息，使用原来的逻辑
             return this.getBasicSchoolScore(text);
         }
         
+        // 按学历层次排序，本科在前（第一学历）
         const sortedDegrees = degrees.sort((a, b) => {
             const order = { 'associate': 1, 'bachelor': 2, 'master': 3, 'phd': 4 };
             return (order[a.degree] || 0) - (order[b.degree] || 0);
@@ -437,21 +288,26 @@ class ResumeScorer {
         let finalScore = 0;
         
         if (sortedDegrees.length === 1) {
+            // 只有一个学历
             const degree = sortedDegrees[0];
             finalScore = this.getSchoolRankScore(degree.school);
             
+            // 学历层次加分
             if (degree.degree === 'phd') finalScore += 2;
             else if (degree.degree === 'master') finalScore += 1;
             
         } else {
-            const firstDegree = sortedDegrees[0];
-            const highestDegree = sortedDegrees[sortedDegrees.length - 1];
+            // 多个学历：第一学历 + 最高学历（各50%）
+            const firstDegree = sortedDegrees[0]; // 第一学历（本科）
+            const highestDegree = sortedDegrees[sortedDegrees.length - 1]; // 最高学历
             
             const firstScore = this.getSchoolRankScore(firstDegree.school);
             const highestScore = this.getSchoolRankScore(highestDegree.school);
             
+            // 计算公式：第一学历权重50% + 最高学历权重50%
             const baseScore = firstScore * 0.5 + highestScore * 0.5;
             
+            // 学历层次加分
             let degreeBonus = 0;
             if (highestDegree.degree === 'phd') degreeBonus = 3;
             else if (highestDegree.degree === 'master') degreeBonus = 2;
@@ -459,97 +315,69 @@ class ResumeScorer {
             finalScore = Math.round(baseScore + degreeBonus);
         }
         
-        return Math.min(finalScore, 15);
+        return Math.min(finalScore, 15); // 确保不超过15分
     }
     
-    // 新的学校排名评分
+    // 获取学校排名得分
     getSchoolRankScore(schoolName) {
         if (!schoolName) return 2;
         
-        // 标准化学校名称用于匹配
-        const normalizedName = schoolName
-            .replace(/大学$/, '')
-            .replace(/学院$/, '')
-            .replace(/科技$/, '')
-            .replace(/理工$/, '');
-        
-        // 顶尖大学 (15分)
-        if (this.schoolRanks.topTier.some(school => 
-            this.matchSchoolName(schoolName, school) || 
-            this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
+        if (this.schoolRanks.top2.some(school => 
+            schoolName.includes(school) || school.includes(schoolName.replace('大学', '').replace('学院', ''))
         )) {
             return 15;
         }
         
-        // 一流大学A类 (13分)
-        if (this.schoolRanks.tier1A.some(school => 
-            this.matchSchoolName(schoolName, school) || 
-            this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
+        if (this.schoolRanks.top985.some(school => 
+            schoolName.includes(school) || school.includes(schoolName.replace('大学', '').replace('学院', '')) ||
+            schoolName.replace('大学', '').replace('学院', '').includes(school.replace('大学', '').replace('学院', ''))
         )) {
-            return 13;
+            return 12;
         }
         
-        // 一流大学B类 (11分)
-        if (this.schoolRanks.tier1B.some(school => 
-            this.matchSchoolName(schoolName, school) || 
-            this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
+        if (this.schoolRanks.c211.some(school => 
+            schoolName.includes(school) || school.includes(schoolName.replace('大学', '').replace('学院', '')) ||
+            schoolName.replace('大学', '').replace('学院', '').includes(school.replace('大学', '').replace('学院', ''))
         )) {
-            return 11;
+            return 8;
         }
         
-        // 一流学科大学 (9分)
-        if (this.schoolRanks.tier2.some(school => 
-            this.matchSchoolName(schoolName, school) || 
-            this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
-        )) {
-            return 9;
-        }
-        
-        // 优质本科 (6分)
-        if (this.schoolRanks.tier3.some(school => 
-            this.matchSchoolName(schoolName, school) || 
-            this.matchSchoolName(normalizedName, school.replace(/大学$/, '').replace(/学院$/, ''))
-        )) {
-            return 6;
-        }
-        
-        // 其他识别
+        // 其他大学
         if (/(大学|学院)/i.test(schoolName)) {
-            if (/(985|211|双一流|重点)/i.test(schoolName)) return 8;
+            if (/(985|211|双一流|重点)/i.test(schoolName)) return 10;
             return 4; // 普通本科
         }
         
         if (/(专科|高职)/i.test(schoolName)) return 2;
         
-        return 3;
+        return 3; // 默认分数
     }
     
-    // 学校名称匹配辅助函数
-    matchSchoolName(name1, name2) {
-        if (!name1 || !name2) return false;
-        
-        // 直接匹配
-        if (name1.includes(name2) || name2.includes(name1)) return true;
-        
-        // 简化匹配
-        const simple1 = name1.replace(/[大学院科技理工]/g, '');
-        const simple2 = name2.replace(/[大学院科技理工]/g, '');
-        
-        return simple1.length >= 2 && simple2.length >= 2 && 
-               (simple1.includes(simple2) || simple2.includes(simple1));
-    }
-    
+    // 保留原来的基础评分逻辑作为备用
     getBasicSchoolScore(text) {
-        // 特殊处理一些新兴优秀大学
-        if (/(南方科技|西湖大学|上海科技|深圳大学)/i.test(text)) return 13;
-        
-        // 原有逻辑
-        if (/(清华|北大)/i.test(text)) return 15;
-        if (/(985|211|双一流|重点)/i.test(text)) return 10;
-        if (/(大学|学院)/i.test(text)) return 6;
-        if (/(专科|高职)/i.test(text)) return 2;
-        
-        return 3;
+        if (this.schoolRanks.top2.some(school => text.includes(school))) {
+            return 15;
+        } else if (this.schoolRanks.top985.some(school => 
+            text.includes(school) || text.includes(school.replace('大学', '')) || text.includes(school.replace('学院', ''))
+        )) {
+            return 12;
+        } else if (this.schoolRanks.c211.some(school => 
+            text.includes(school) || text.includes(school.replace('大学', '')) || text.includes(school.replace('学院', ''))
+        )) {
+            return 8;
+        } else if (/(大学|学院|college|university)/i.test(text)) {
+            if (/(985|211|双一流|重点)/i.test(text)) {
+                return 10;
+            } else if (/(本科|学士|bachelor)/i.test(text)) {
+                return 4;
+            } else {
+                return 6;
+            }
+        } else if (/(专科|高职|college)/i.test(text)) {
+            return 2;
+        } else {
+            return 3;
+        }
     }
     
     extractGPA(text) {
@@ -558,12 +386,12 @@ class ResumeScorer {
                         text.match(/平均分[：:\s]*([0-9.]+)/);
         if (gpaMatch) {
             const gpa = parseFloat(gpaMatch[1]);
-            return gpa > 5 ? gpa / 25 : gpa;
+            return gpa > 5 ? gpa / 25 : gpa; // 处理百分制转换为4分制
         }
         return 0;
     }
     
-    // 改进技能识别，添加工程技能
+    // 改进技能识别
     analyzeSkills(text) {
         const skills = {
             programming: [],
@@ -572,7 +400,6 @@ class ResumeScorer {
             business: [],
             language: [],
             office: [],
-            engineering: [], // 新增工程技能
             total: 0
         };
         
@@ -581,6 +408,7 @@ class ResumeScorer {
         Object.keys(this.skillKeywords).forEach(category => {
             this.skillKeywords[category].forEach(skill => {
                 const skillLower = skill.toLowerCase();
+                // 更灵活的匹配：包含关键词或部分匹配
                 if (textLower.includes(skillLower) || 
                     textLower.includes(skillLower.replace(/[.\s]/g, '')) ||
                     this.fuzzyMatch(textLower, skillLower)) {
@@ -598,7 +426,9 @@ class ResumeScorer {
         return skills;
     }
     
+    // 模糊匹配函数
     fuzzyMatch(text, keyword) {
+        // 简单的模糊匹配：去掉空格和特殊字符后比较
         const cleanText = text.replace(/[\s\-_.]/g, '');
         const cleanKeyword = keyword.replace(/[\s\-_.]/g, '');
         return cleanText.includes(cleanKeyword) || cleanKeyword.includes(cleanText);
@@ -610,7 +440,7 @@ class ResumeScorer {
                                     (text.match(/(公司|企业|集团|科技|有限).*?(实习|intern)/gi) || []).length),
             projectCount: Math.max((text.match(/项目|project/gi) || []).length,
                                  (text.match(/(开发|设计|完成|负责).*?(项目|系统|网站|APP)/gi) || []).length),
-            hasCompanyName: /(有限公司|股份|集团|科技|互联网|腾讯|阿里|百度|字节|美团|京东|华为|小米|网易|滴滴|快手)/i.test(text),
+            hasCompanyName: /(有限公司|股份|集团|科技|互联网|腾讯|阿里|百度|字节|美团|京东|华为|小米)/i.test(text),
             hasDuration: /(年|月|周|day|week|\d+个月|\d+年)/i.test(text),
             hasAchievement: /(完成|实现|提升|优化|负责|开发|设计|获得|达到)/i.test(text)
         };
@@ -641,6 +471,7 @@ class ResumeScorer {
         };
     }
     
+    // 基本信息详细评分
     scoreBasicInfoDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -664,6 +495,7 @@ class ResumeScorer {
         };
     }
     
+    // 教育背景详细评分
     scoreEducationDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -688,22 +520,21 @@ class ResumeScorer {
         };
     }
     
+    // 技能详细评分
     scoreSkillsDetailed(analysis) {
         const details = {};
         let total = 0;
         const skills = analysis.skills;
         
-        details.programming = Math.min(skills.programming.length * 2.5, 8);
+        // 提高技能评分，避免过低
+        details.programming = Math.min(skills.programming.length * 2.5, 10);
         total += details.programming;
         
-        details.design = Math.min(skills.design.length * 2, 4);
+        details.design = Math.min(skills.design.length * 2, 5);
         total += details.design;
         
-        details.data = Math.min(skills.data.length * 2, 4);
+        details.data = Math.min(skills.data.length * 2, 5);
         total += details.data;
-        
-        details.engineering = Math.min(skills.engineering.length * 2, 4);
-        total += details.engineering;
         
         details.business = Math.min(skills.business.length * 1.5, 3);
         total += details.business;
@@ -714,10 +545,11 @@ class ResumeScorer {
         return {
             total: Math.min(total, this.maxScores.skills),
             details: details,
-            maxScores: { programming: 8, design: 4, data: 4, engineering: 4, business: 3, language: 2 }
+            maxScores: { programming: 10, design: 5, data: 5, business: 3, language: 2 }
         };
     }
     
+    // 经验详细评分
     scoreExperienceDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -743,6 +575,7 @@ class ResumeScorer {
         };
     }
     
+    // 成就详细评分
     scoreAchievementsDetailed(analysis) {
         const details = {};
         let total = 0;
@@ -764,274 +597,6 @@ class ResumeScorer {
             total: Math.min(total, this.maxScores.achievements),
             details: details,
             maxScores: { scholarship: 3, competition: 3, certificate: 2, leadership: 2 }
-        };
-    }
-    
-    // 大幅扩展岗位推荐
-    recommendJobs(analysis, specializations = []) {
-        const jobs = [];
-        const skills = analysis.skills;
-        const education = analysis.education;
-        
-        // 1. 技术开发类
-        if (skills.programming.length > 0) {
-            jobs.push({
-                category: '软件开发工程师',
-                match: Math.min(75 + skills.programming.length * 3, 95),
-                reason: `掌握${skills.programming.slice(0, 3).join('、')}等编程技能`
-            });
-        }
-        
-        // 2. 数据分析类
-        if (skills.data.length > 0) {
-            jobs.push({
-                category: '数据分析师',
-                match: Math.min(70 + skills.data.length * 4, 90),
-                reason: `具备${skills.data.slice(0, 3).join('、')}等数据处理能力`
-            });
-        }
-        
-        // 3. 产品设计类
-        if (skills.design.length > 0) {
-            jobs.push({
-                category: '产品设计师',
-                match: Math.min(65 + skills.design.length * 5, 88),
-                reason: `熟练使用${skills.design.slice(0, 3).join('、')}等设计工具`
-            });
-        }
-        
-        // 4. 工程技术类
-        if (skills.engineering.length > 0) {
-            jobs.push({
-                category: '工程技术岗位',
-                match: Math.min(60 + skills.engineering.length * 6, 85),
-                reason: `掌握${skills.engineering.slice(0, 3).join('、')}等工程技术`
-            });
-        }
-        
-        // 5. 学术研究类
-        const academicSignals = this.detectAcademicOrientation(analysis);
-        if (academicSignals.score > 0) {
-            jobs.push({
-                category: '学术研究/高校教师',
-                match: Math.min(60 + academicSignals.score, 85),
-                reason: academicSignals.reason
-            });
-        }
-        
-        // 6. 科研院所
-        const researchSignals = this.detectResearchOrientation(analysis);
-        if (researchSignals.score > 0) {
-            jobs.push({
-                category: '科研院所研究员',
-                match: Math.min(60 + researchSignals.score, 85),
-                reason: researchSignals.reason
-            });
-        }
-        
-        // 7. 国企央企
-        const stateOwnedSignals = this.detectStateOwnedOrientation(analysis);
-        if (stateOwnedSignals.score > 0) {
-            jobs.push({
-                category: '国企央企技术岗',
-                match: Math.min(55 + stateOwnedSignals.score, 80),
-                reason: stateOwnedSignals.reason
-            });
-        }
-        
-        // 8. 商务运营类
-        if (skills.business.length > 0 || analysis.experience.internshipCount > 0) {
-            jobs.push({
-                category: '商务运营',
-                match: Math.min(60 + analysis.experience.internshipCount * 5, 85),
-                reason: '具备商业思维和实习经验'
-            });
-        }
-        
-        // 9. 专精加成推荐
-        specializations.forEach(spec => {
-            if (spec.type === 'programming' && spec.level >= 6) {
-                jobs.push({
-                    category: '高级软件工程师',
-                    match: 90,
-                    reason: `编程技能专精（掌握${spec.level}项技术）`
-                });
-            }
-            if (spec.type === 'academic' && spec.level >= 4) {
-                jobs.push({
-                    category: '博士研究生/科研助理',
-                    match: 88,
-                    reason: `学术能力突出（${spec.level}项学术成果）`
-                });
-            }
-            if (spec.type === 'engineering' && spec.level >= 4) {
-                jobs.push({
-                    category: '高级工程师',
-                    match: 87,
-                    reason: `工程技能专精（掌握${spec.level}项技术）`
-                });
-            }
-        });
-        
-        // 10. 兜底推荐
-        if (jobs.length === 0) {
-            // 根据学校层次给出不同建议
-            if (education.schoolLevel >= 11) {
-                jobs.push({
-                    category: '知名企业管培生',
-                    match: 75,
-                    reason: '名校背景，适合大企业培养计划'
-                });
-            } else {
-                jobs.push({
-                    category: '管理培训生',
-                    match: 60,
-                    reason: '适合全面发展的应届毕业生'
-                });
-            }
-        }
-        
-        // 去重并排序
-        const uniqueJobs = jobs.filter((job, index, self) => 
-            index === self.findIndex(j => j.category === job.category)
-        );
-        
-        return uniqueJobs.sort((a, b) => b.match - a.match).slice(0, 4);
-    }
-    
-    // 检测学术导向
-    detectAcademicOrientation(analysis) {
-        let score = 0;
-        let reasons = [];
-        
-        // 学历指标
-        if (analysis.education.degrees && analysis.education.degrees.some(d => d.degree === 'master')) {
-            score += 15;
-            reasons.push('研究生学历');
-        }
-        if (analysis.education.degrees && analysis.education.degrees.some(d => d.degree === 'phd')) {
-            score += 25;
-            reasons.push('博士学历');
-        }
-        
-        // 学校层次加成
-        if (analysis.education.schoolLevel >= 13) {
-            score += 10;
-            reasons.push('顶尖大学背景');
-        } else if (analysis.education.schoolLevel >= 11) {
-            score += 8;
-            reasons.push('一流大学背景');
-        }
-        
-        // GPA指标
-        if (analysis.education.gpa >= 3.7) {
-            score += 10;
-            reasons.push('优秀学术成绩');
-        }
-        
-        // 学术成果指标
-        if (analysis.achievements.competitionCount >= 2) {
-            score += 8;
-            reasons.push('多项学术竞赛获奖');
-        }
-        if (analysis.achievements.scholarshipCount >= 2) {
-            score += 8;
-            reasons.push('多次获得奖学金');
-        }
-        
-        return {
-            score: score,
-            reason: reasons.length > 0 ? reasons.join('，') + '，适合学术研究发展' : ''
-        };
-    }
-    
-    // 检测科研院所导向
-    detectResearchOrientation(analysis) {
-        let score = 0;
-        let reasons = [];
-        
-        // 基础学科背景
-        const researchMajors = ['数学', '物理', '化学', '生物', '地理', '天文', '心理学', '材料', '环境'];
-        const hasMajorMatch = researchMajors.some(major => 
-            analysis.education.hasMajor && major
-        );
-        
-        if (hasMajorMatch) {
-            score += 18;
-            reasons.push('基础学科专业');
-        }
-        
-        // 985/211加成
-        if (analysis.education.schoolLevel >= 11) {
-            score += 12;
-            reasons.push('重点大学背景');
-        }
-        
-        // 学术能力
-        if (analysis.achievements.competitionCount + analysis.achievements.scholarshipCount >= 3) {
-            score += 15;
-            reasons.push('突出学术表现');
-        }
-        
-        // 研究技能
-        const researchSkills = ['SPSS', 'R语言', 'MATLAB', 'Python', '统计', '建模', '实验设计'];
-        const matchedSkills = researchSkills.filter(skill => 
-            Object.values(analysis.skills).some(skillArray => 
-                Array.isArray(skillArray) && skillArray.some(s => s.toLowerCase().includes(skill.toLowerCase()))
-            )
-        );
-        
-        if (matchedSkills.length >= 2) {
-            score += 10;
-            reasons.push('具备研究分析能力');
-        }
-        
-        return {
-            score: score,
-            reason: reasons.length > 0 ? reasons.join('，') + '，适合科研院所工作' : ''
-        };
-    }
-    
-    // 检测国企央企导向
-    detectStateOwnedOrientation(analysis) {
-        let score = 0;
-        let reasons = [];
-        
-        // 学校背景（国企偏爱985/211）
-        if (analysis.education.schoolLevel >= 11) {
-            score += 15;
-            reasons.push('名校背景受国企青睐');
-        } else if (analysis.education.schoolLevel >= 9) {
-            score += 10;
-            reasons.push('重点大学背景');
-        }
-        
-        // 专业匹配（工科、经管类）
-        const stateOwnedMajors = ['电气', '电力', '能源', '石油', '化工', '机械', '土木', '交通', '通信', '金融', '经济', '管理'];
-        const hasMajorMatch = stateOwnedMajors.some(major => 
-            analysis.education.hasMajor && major
-        );
-        
-        if (hasMajorMatch) {
-            score += 12;
-            reasons.push('专业对口国企需求');
-        }
-        
-        // 学术表现（国企看重综合素质）
-        if (analysis.achievements.scholarshipCount >= 1) {
-            score += 8;
-            reasons.push('获得奖学金认可');
-        }
-        
-        // 领导经历
-        if (analysis.achievements.hasLeadership) {
-            score += 8;
-            reasons.push('有学生干部经历');
-        }
-        
-        return {
-            score: score,
-            reason: reasons.length > 0 ? reasons.join('，') + '，适合国企央企发展' : ''
         };
     }
     
@@ -1071,15 +636,58 @@ class ResumeScorer {
             suggestions.push('争取担任学生干部或参与社团活动');
         }
         
-        // 特殊建议
-        if (analysis.education.schoolLevel >= 13) {
-            suggestions.push('充分利用名校背景，可考虑申请知名企业或继续深造');
-        }
-        
         if (suggestions.length === 0) {
             suggestions.push('简历质量很好！建议针对不同岗位定制化调整');
         }
         
         return suggestions;
+    }
+    
+    // 岗位推荐
+    recommendJobs(analysis) {
+        const jobs = [];
+        const skills = analysis.skills;
+        
+        if (skills.programming.length > 0) {
+            jobs.push({
+                category: '技术开发',
+                match: Math.min(75 + skills.programming.length * 3, 95),
+                reason: `掌握${skills.programming.slice(0, 3).join('、')}等编程技能`
+            });
+        }
+        
+        if (skills.data.length > 0) {
+            jobs.push({
+                category: '数据分析',
+                match: Math.min(70 + skills.data.length * 4, 90),
+                reason: `具备${skills.data.slice(0, 3).join('、')}等数据处理能力`
+            });
+        }
+        
+        if (skills.design.length > 0) {
+            jobs.push({
+                category: '产品设计',
+                match: Math.min(65 + skills.design.length * 5, 88),
+                reason: `熟练使用${skills.design.slice(0, 3).join('、')}等设计工具`
+            });
+        }
+        
+        if (skills.business.length > 0 || analysis.experience.internshipCount > 0) {
+            jobs.push({
+                category: '商务运营',
+                match: Math.min(60 + analysis.experience.internshipCount * 5, 85),
+                reason: '具备商业思维和实习经验'
+            });
+        }
+        
+        if (jobs.length === 0) {
+            jobs.push({
+                category: '管理培训生',
+                match: 60,
+                reason: '适合全面发展的应届毕业生'
+            });
+        }
+        
+        return jobs.sort((a, b) => b.match - a.match).slice(0, 3);
     }
 }

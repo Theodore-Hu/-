@@ -343,6 +343,33 @@ class ResumeScorer {
             '党员', '团员', '群众', '民主党派', '无党派', '汉族', '满族', '回族', '藏族',
             '未婚', '已婚', '离异', '丧偶', '单身', '恋爱', '订婚'
         ];
+
+        // 添加去重相关配置
+        this.duplicatePatterns = {
+            // 工程技能去重模式
+            engineering: [
+                ['ANSYS', '仿真', '有限元'],
+                ['SolidWorks', '建模', '三维设计'],
+                ['CAD', 'AutoCAD', '制图'],
+                ['MATLAB', '数值计算', '算法'],
+                ['LabVIEW', '数据采集', '测试']
+            ],
+            // 编程技能去重模式
+            programming: [
+                ['JavaScript', 'JS', 'Node.js', 'React', 'Vue'],
+                ['Python', 'Django', 'Flask', 'pandas', 'numpy'],
+                ['Java', 'Spring', 'SpringBoot', 'Hibernate'],
+                ['C++', 'C', '程序设计', '算法'],
+                ['数据库', 'SQL', 'MySQL', 'Oracle', 'MongoDB']
+            ],
+            // 数据分析去重模式
+            data: [
+                ['Excel', '数据分析', '数据处理', '统计'],
+                ['SPSS', '统计分析', '数据挖掘'],
+                ['Python', 'pandas', 'numpy', '数据科学'],
+                ['机器学习', '深度学习', 'AI', '人工智能']
+            ]
+        };
     }
     
     // 检测专精类型（按新逻辑）
@@ -470,8 +497,8 @@ class ResumeScorer {
         // 学术成果质量加成
         let qualityBonus = 0;
         if (achievements.paperCount) {
-            // 这里简化处理，实际可以区分论文质量
-            qualityBonus += achievements.paperCount * 2; // 每篇论文额外2分质量加成
+            // 每篇论文额外2分质量加成
+            qualityBonus += achievements.paperCount * 2;
         }
         if (achievements.patentCount) {
             qualityBonus += achievements.patentCount * 1; // 每项专利额外1分
@@ -883,7 +910,7 @@ class ResumeScorer {
         return 0;
     }
     
-    // 技能识别 - 每项1分
+    // 技能识别 - 增强去重版本
     analyzeSkills(text) {
         const skills = {
             programming: [],
@@ -895,18 +922,34 @@ class ResumeScorer {
             total: 0
         };
         
-        const textLower = text.toLowerCase();
+        // 将文本按句子分块避免重复计算
+        const blocks = text.split(/[。！？\n\r]+/).filter(block => block.trim().length > 0);
+        const globalDetectedSkills = new Set();
         
-        Object.keys(this.skillKeywords).forEach(category => {
-            this.skillKeywords[category].forEach(skill => {
-                const skillLower = skill.toLowerCase();
-                if (textLower.includes(skillLower) || 
-                    textLower.includes(skillLower.replace(/[.\s]/g, '')) ||
-                    this.fuzzyMatch(textLower, skillLower)) {
-                    if (!skills[category].includes(skill)) {
-                        skills[category].push(skill);
+        // 对每个文本块进行技能识别
+        blocks.forEach(block => {
+            const blockText = block.trim();
+            const blockDetectedSkills = new Set();
+            const usedPatterns = new Set();
+            
+            Object.keys(this.skillKeywords).forEach(category => {
+                this.skillKeywords[category].forEach(skill => {
+                    const skillLower = skill.toLowerCase();
+                    const blockTextLower = blockText.toLowerCase();
+                    
+                    if ((blockTextLower.includes(skillLower) || 
+                        blockTextLower.includes(skillLower.replace(/[.\s]/g, '')) ||
+                        this.fuzzyMatch(blockTextLower, skillLower)) &&
+                        !globalDetectedSkills.has(skillLower) &&
+                        !this.isDuplicateInBlock(skill, category, blockDetectedSkills, usedPatterns)) {
+                        
+                        if (!skills[category].includes(skill)) {
+                            skills[category].push(skill);
+                            globalDetectedSkills.add(skillLower);
+                            blockDetectedSkills.add(skill);
+                        }
                     }
-                }
+                });
             });
         });
         
@@ -915,6 +958,40 @@ class ResumeScorer {
         );
         
         return skills;
+    }
+    
+    // 检查是否为重复技能
+    isDuplicateInBlock(skill, category, blockDetectedSkills, usedPatterns) {
+        const skillLower = skill.toLowerCase();
+        
+        // 同义词去重：检查是否与已检测的技能是同义词
+        if (this.duplicatePatterns[category]) {
+            for (let pattern of this.duplicatePatterns[category]) {
+                const patternKey = pattern.join('-').toLowerCase();
+                
+                // 如果当前技能属于某个模式组
+                if (pattern.some(p => p.toLowerCase() === skillLower)) {
+                    // 检查这个模式组是否已经被使用过
+                    if (usedPatterns.has(patternKey)) {
+                        return true;
+                    }
+                    
+                    // 检查已检测的技能中是否有同组的
+                    const hasPatternMatch = Array.from(blockDetectedSkills).some(detectedSkill => 
+                        pattern.some(p => p.toLowerCase() === detectedSkill.toLowerCase())
+                    );
+                    
+                    if (hasPatternMatch) {
+                        return true;
+                    }
+                    
+                    // 标记这个模式组已使用
+                    usedPatterns.add(patternKey);
+                }
+            }
+        }
+        
+        return false;
     }
     
     fuzzyMatch(text, keyword) {
@@ -942,49 +1019,87 @@ class ResumeScorer {
         };
     }
     
-    // 成就分析 - 每条1分
+    // 成就分析 - 增强去重版本
     analyzeAchievements(text) {
+        // 按更细的粒度分块，避免同一项成果被重复计算
+        const blocks = text.split(/[。！？；\n\r•·]+/).filter(block => block.trim().length > 5);
+        
         return {
-            scholarshipCount: (text.match(/(奖学金|scholarship|学业奖励)/gi) || []).length,
-            competitionCount: (text.match(/(竞赛|比赛|competition|contest|获奖|奖项)/gi) || []).length,
-            certificateCount: (text.match(/(证书|证明|认证|certificate|资格证)/gi) || []).length,
+            scholarshipCount: this.countUniqueItems(blocks, /(奖学金|scholarship|学业奖励)/gi),
+            competitionCount: this.countUniqueItems(blocks, /(竞赛|比赛|competition|contest|获奖|奖项)/gi),
+            certificateCount: this.countUniqueItems(blocks, /(证书|证明|认证|certificate|资格证)/gi),
             hasLeadership: /(主席|部长|队长|负责人|leader|班长|会长|社长|组长)/i.test(text),
-            // 学术成果
-            paperCount: this.countPapers(text),
-            patentCount: this.countPatents(text),
-            softwareCount: this.countSoftware(text)
+            paperCount: this.countUniquePapers(blocks),
+            patentCount: this.countUniqueItems(blocks, /(发明专利|实用新型|外观设计|专利|patent)/gi),
+            softwareCount: this.countUniqueItems(blocks, /(软件著作权|软著|计算机软件著作权)/gi)
         };
     }
     
-    // 统计论文数量
-    countPapers(text) {
-        let count = 0;
+    // 统计唯一项目
+    countUniqueItems(blocks, pattern) {
+        const uniqueItems = new Set();
         
-        // 顶级期刊
-        count += (text.match(/(Nature|Science|Cell)/gi) || []).length;
+        blocks.forEach(block => {
+            const matches = block.match(pattern) || [];
+            if (matches.length > 0) {
+                // 基于上下文生成唯一标识，避免重复计算
+                const context = block.substring(0, 50).toLowerCase().trim();
+                uniqueItems.add(context);
+            }
+        });
         
-        // SCI论文
-        count += (text.match(/(SCI|JCR|一区|二区|三区|四区)/gi) || []).length;
-        
-        // EI论文
-        count += (text.match(/(EI|conference)/gi) || []).length;
-        
-        // 一般论文
-        count += (text.match(/(论文|发表|期刊|journal|publication)/gi) || []).length;
-        
-        return Math.min(count, 10); // 限制最大论文数
+        return Math.min(uniqueItems.size, 15); // 设置合理上限
     }
     
-    // 统计专利数量
-    countPatents(text) {
-        const patents = text.match(/(发明专利|实用新型|外观设计|专利|patent)/gi) || [];
-        return Math.min(patents.length, 8); // 限制最大专利数
+    // 统计唯一论文
+    countUniquePapers(blocks) {
+        const uniquePapers = new Set();
+        const paperKeywords = [
+            /(Nature|Science|Cell)/gi,
+            /(SCI|JCR|一区|二区|三区|四区)/gi,
+            /(EI|conference)/gi,
+            /(论文|发表|期刊|journal|publication)/gi
+        ];
+        
+        blocks.forEach(block => {
+            let hasPaper = false;
+            paperKeywords.forEach(pattern => {
+                if (pattern.test(block)) {
+                    hasPaper = true;
+                }
+            });
+            
+            if (hasPaper) {
+                // 提取论文特征避免重复
+                const paperFeature = this.extractPaperFeature(block);
+                if (paperFeature) {
+                    uniquePapers.add(paperFeature);
+                }
+            }
+        });
+        
+        return Math.min(uniquePapers.size, 10);
     }
     
-    // 统计软著数量
-    countSoftware(text) {
-        const software = text.match(/(软件著作权|软著|计算机软件著作权)/gi) || [];
-        return Math.min(software.length, 5); // 限制最大软著数
+    // 提取论文特征
+    extractPaperFeature(text) {
+        // 尝试提取论文标题或期刊名称
+        const patterns = [
+            /《([^》]+)》/g,
+            /"([^"]+)"/g,
+            /[A-Z][a-zA-Z\s]+Journal/gi,
+            /[A-Z][a-zA-Z\s]+Conference/gi
+        ];
+        
+        for (let pattern of patterns) {
+            const match = text.match(pattern);
+            if (match && match[0].length > 5) {
+                return match[0].toLowerCase().trim();
+            }
+        }
+        
+        // 如果没有找到特征，使用前30个字符
+        return text.substring(0, 30).toLowerCase().trim();
     }
     
     hasGoodStructure(text) {
@@ -1113,14 +1228,13 @@ class ResumeScorer {
         
         details.internship = internshipScore;
         details.project = projectScore;
-        details.quality = 0; // 质量分已经分配到各项中
         
         total = internshipScore + projectScore;
         
         return {
             total: Math.min(total, this.maxScores.experience), // 基础分限制25分
             details: details,
-            maxScores: { internship: 99, project: 99, quality: 0 }
+            maxScores: { internship: 50, project: 50 } // 修正：移除quality
         };
     }
     
@@ -1323,6 +1437,7 @@ class ResumeScorer {
             businessKeywords.some(keyword => degree.text.includes(keyword))
         );
     }
+    
     // 检测学术导向
     detectAcademicOrientation(analysis) {
         let score = 0;

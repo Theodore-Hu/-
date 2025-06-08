@@ -186,75 +186,54 @@ function updateTotalScore(result) {
     const bonus = result.specializationBonus || 0;
     const totalScore = result.totalScore;
     
-    // 清空现有内容，避免重叠
+    // 完全清空现有内容
     scoreElement.innerHTML = '';
+    scoreElement.className = 'score-number';
     
     if (bonus > 0) {
-        // 有专精加成的显示方式
+        // 有专精加成时的显示
         scoreElement.innerHTML = `
-            <div class="score-display-container">
-                <div class="main-score">${totalScore}</div>
-                <div class="score-composition">
-                    <div class="composition-item base">
-                        <span class="composition-label">基础</span>
-                        <span class="composition-value">${baseScore}</span>
-                    </div>
-                    <div class="composition-plus">+</div>
-                    <div class="composition-item bonus">
-                        <span class="composition-label">专精</span>
-                        <span class="composition-value">${bonus}</span>
-                    </div>
-                </div>
+            <div class="total-score-main">${totalScore}</div>
+            <div class="score-breakdown-compact">
+                <span class="base-part">${baseScore}</span>
+                <span class="plus-sign">+</span>
+                <span class="bonus-part">${bonus}</span>
             </div>
         `;
     } else {
-        // 无专精加成的简单显示
+        // 无专精加成时的简单显示
         scoreElement.innerHTML = `
-            <div class="score-display-container">
-                <div class="main-score">${totalScore}</div>
-            </div>
+            <div class="total-score-main">${totalScore}</div>
         `;
     }
     
-    // 设置圆环进度
+    // 设置圆环进度 - 简化处理避免重叠
     const basePercentage = Math.min((baseScore / 100) * 360, 360);
     
-    // 清理之前可能存在的额外元素
-    const existingBonusRing = circleElement.querySelector('.bonus-ring');
-    if (existingBonusRing) {
-        existingBonusRing.remove();
-    }
+    // 清理可能存在的额外元素
+    const existingElements = circleElement.querySelectorAll('.bonus-ring, .specialization-info');
+    existingElements.forEach(el => el.remove());
     
     if (bonus > 0) {
-        // 基础圆环
+        // 基础圆环 + 专精效果
         circleElement.style.background = `conic-gradient(
             #48bb78 0deg, 
             #48bb78 ${basePercentage}deg,
             #f0f0f0 ${basePercentage}deg
         )`;
         
-        // 添加专精加成光环效果
-        const bonusRing = document.createElement('div');
-        bonusRing.className = 'bonus-ring';
-        bonusRing.style.cssText = `
-            position: absolute;
-            top: -8px;
-            left: -8px;
-            width: 166px;
-            height: 166px;
-            border-radius: 50%;
-            border: 3px solid transparent;
-            border-top: 3px solid #667eea;
-            border-right: 3px solid #667eea;
-            animation: spin 4s linear infinite;
-            opacity: 0.6;
-            pointer-events: none;
+        // 添加专精光环 - 避免重叠
+        circleElement.style.boxShadow = `
+            0 0 20px rgba(102, 126, 234, 0.3),
+            0 0 40px rgba(102, 126, 234, 0.1),
+            inset 0 0 0 3px rgba(102, 126, 234, 0.2)
         `;
-        circleElement.appendChild(bonusRing);
+        
         circleElement.classList.add('excellent-plus');
     } else {
         const color = getScoreColor(baseScore);
         circleElement.style.background = `conic-gradient(${color} 0deg, ${color} ${basePercentage}deg, #f0f0f0 ${basePercentage}deg)`;
+        circleElement.style.boxShadow = 'none';
         circleElement.classList.remove('excellent-plus');
     }
     
@@ -266,8 +245,53 @@ function updateTotalScore(result) {
     // 更新总结文字
     summaryElement.innerHTML = level.summary;
     if (bonus > 0) {
-        summaryElement.innerHTML += `<br><small style="color: #667eea; font-weight: 500;">🌟 专精加成让您脱颖而出！</small>`;
+        summaryElement.innerHTML += `<br><small style="color: #667eea; font-weight: 500; margin-top: 8px; display: inline-block;">🌟 专精加成让您脱颖而出！</small>`;
     }
+    
+    // 如果有专精信息，在总分区域下方单独显示
+    if (result.specializations && result.specializations.length > 0) {
+        showSpecializationInfoSeparate(result.specializations, result.specializationBonus);
+    }
+}
+
+// 单独显示专精信息，避免与总分重叠
+function showSpecializationInfoSeparate(specializations, totalBonus) {
+    const container = document.querySelector('.score-overview');
+    
+    // 移除之前的专精信息
+    const existing = container.querySelector('.specialization-info-separate');
+    if (existing) existing.remove();
+    
+    const specDiv = document.createElement('div');
+    specDiv.className = 'specialization-info-separate';
+    
+    const specTypes = {
+        'programming': '💻 编程开发',
+        'data': '📊 数据分析', 
+        'design': '🎨 设计创作',
+        'engineering': '⚙️ 工程技术',
+        'academic': '🎓 学术研究',
+        'practical': '💼 实践应用'
+    };
+    
+    let specDetails = specializations.map(spec => 
+        `${specTypes[spec.type]} Lv.${spec.level} (+${spec.bonus}分)`
+    ).join(' • ');
+    
+    specDiv.innerHTML = `
+        <div class="spec-header-separate">
+            <span class="spec-icon">⭐</span>
+            <span class="spec-title">专精领域识别</span>
+        </div>
+        <div class="spec-details-separate">
+            ${specDetails}
+        </div>
+        <div class="spec-total-separate">
+            总专精加成: <strong>+${totalBonus}分</strong>
+        </div>
+    `;
+    
+    container.appendChild(specDiv);
 }
 
 // 修正：支持超过100分的等级系统

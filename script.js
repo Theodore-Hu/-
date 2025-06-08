@@ -823,24 +823,30 @@ class ResumeScoreApp {
         return html;
     }
 
-    // 在 ResumeScoreApp 类中添加这个方法
+    // 在 ResumeScoreApp 类中修正这个方法
     generateAchievementSpecDetails(extraScore) {
         const categoryMap = {
-            leadership: '学生干部专精',
-            honor: '荣誉奖励专精', 
-            competition: '竞赛获奖专精',
-            certificate: '证书认证专精'
+            leadership: '学生干部',
+            honor: '荣誉奖励', 
+            competition: '竞赛获奖',
+            certificate: '证书认证'
         };
         
         let html = '';
+        let totalExtraScore = 0;
+        
         Object.entries(extraScore).forEach(([key, score]) => {
             if (score > 0) {
+                totalExtraScore += score;
                 const bonus = Math.min(Math.floor(score / 3), 5);
                 if (bonus > 0) {
                     html += `
                         <div class="spec-item">
                             <div class="spec-boost">
-                                <span class="boost-label">${categoryMap[key]} (超出基础分${score}分)</span>
+                                <span class="boost-label">
+                                    ${categoryMap[key]}专精
+                                    <small class="boost-detail">(超出${score}分)</small>
+                                </span>
                                 <span class="boost-value">+${bonus} 分</span>
                             </div>
                         </div>
@@ -848,6 +854,18 @@ class ResumeScoreApp {
                 }
             }
         });
+        
+        // 如果没有专精项目，显示说明
+        if (html === '') {
+            html = `
+                <div class="spec-item">
+                    <div class="spec-boost">
+                        <span class="boost-label">暂无专精加成</span>
+                        <span class="boost-detail">各细项均在满分范围内</span>
+                    </div>
+                </div>
+            `;
+        }
         
         return html;
     }

@@ -530,43 +530,44 @@ class ResumeScorer {
         
         // 学生干部计分 - 限制在5分内
         let leadershipScore = 0;
+        let leadershipRawScore = 0;
+        
         if (chairmanCount > 0) {
             const rawScore = chairmanCount * 3;
+            leadershipRawScore += rawScore;
             const limitedScore = Math.min(rawScore, 5);
             details.chairman = chairmanCount;
             leadershipScore += limitedScore;
-            if (rawScore > 5) {
-                extraScore.leadership = (extraScore.leadership || 0) + (rawScore - 5);
-            }
-            console.log('主席级别得分:', limitedScore, '超出:', rawScore - limitedScore);
+            console.log('主席级别得分:', limitedScore, '原始分:', rawScore);
         }
         if (ministerCount > 0) {
             const rawScore = ministerCount * 2;
+            leadershipRawScore += rawScore;
             const remainingLimit = Math.max(0, 5 - leadershipScore);
             const limitedScore = Math.min(rawScore, remainingLimit);
             details.minister = ministerCount;
             leadershipScore += limitedScore;
-            if (rawScore > limitedScore) {
-                extraScore.leadership = (extraScore.leadership || 0) + (rawScore - limitedScore);
-            }
-            console.log('部长级别得分:', limitedScore, '超出:', rawScore - limitedScore);
+            console.log('部长级别得分:', limitedScore, '原始分:', rawScore);
         }
         if (memberCount > 0) {
             const rawScore = memberCount * 1;
+            leadershipRawScore += rawScore;
             const remainingLimit = Math.max(0, 5 - leadershipScore);
             const limitedScore = Math.min(rawScore, remainingLimit);
             details.member = memberCount;
             leadershipScore += limitedScore;
-            if (rawScore > limitedScore) {
-                extraScore.leadership = (extraScore.leadership || 0) + (rawScore - limitedScore);
-            }
-            console.log('成员级别得分:', limitedScore, '超出:', rawScore - limitedScore);
+            console.log('成员级别得分:', limitedScore, '原始分:', rawScore);
+        }
+        
+        // 计算学生干部超出分
+        if (leadershipRawScore > 5) {
+            extraScore.leadership = leadershipRawScore - 5;
+            console.log('学生干部超出分:', extraScore.leadership);
         }
         
         totalScore += leadershipScore;
         
         // 奖学金和荣誉计分 - 每类限制在5分内
-        // 在荣誉计分部分，添加默认校级荣誉识别
         const honorCategories = {
             national: { patterns: [/(国家.{0,10}奖学金|国家.{0,10}励志奖学金)/gi], score: 4 },
             provincial: { patterns: [/(省.{0,10}奖学金|省级.{0,10}奖学金)/gi], score: 3 },
@@ -583,6 +584,8 @@ class ResumeScorer {
             college: { patterns: [/(院.{0,10}奖学金|院级.{0,10}奖学金)/gi], score: 1 }
         };
         
+        let honorRawScore = 0;
+        let honorScore = 0;
         Object.entries(honorCategories).forEach(([category, config]) => {
             let count = 0;
             config.patterns.forEach(pattern => {
@@ -592,15 +595,22 @@ class ResumeScorer {
             
             if (count > 0) {
                 const rawScore = count * config.score;
-                const limitedScore = Math.min(rawScore, 5);
+                honorRawScore += rawScore;
+                const remainingLimit = Math.max(0, 5 - honorScore);
+                const limitedScore = Math.min(rawScore, remainingLimit);
                 details[category + 'Honor'] = count;
-                totalScore += limitedScore;
-                if (rawScore > 5) {
-                    extraScore.honor = (extraScore.honor || 0) + (rawScore - 5);
-                }
-                console.log(`${category}荣誉得分:`, limitedScore, '超出:', rawScore - limitedScore);
+                honorScore += limitedScore;
+                console.log(`${category}荣誉得分:`, limitedScore, '原始分:', rawScore);
             }
         });
+        
+        // 计算荣誉超出分
+        if (honorRawScore > 5) {
+            extraScore.honor = honorRawScore - 5;
+            console.log('荣誉奖励超出分:', extraScore.honor);
+        }
+        
+        totalScore += honorScore;
         
         // 竞赛获奖计分 - 限制在5分内
         const competitionCategories = {
@@ -610,6 +620,7 @@ class ResumeScorer {
             school: { patterns: [/(校.{0,15}(竞赛|比赛|大赛).{0,10}(奖|名|获奖)|一等奖|二等奖|三等奖|特等奖|金奖|银奖|铜奖)/gi], score: 1 }
         };
         
+        let competitionRawScore = 0;
         let competitionScore = 0;
         Object.entries(competitionCategories).forEach(([category, config]) => {
             let count = 0;
@@ -620,45 +631,55 @@ class ResumeScorer {
             
             if (count > 0) {
                 const rawScore = count * config.score;
+                competitionRawScore += rawScore;
                 const remainingLimit = Math.max(0, 5 - competitionScore);
                 const limitedScore = Math.min(rawScore, remainingLimit);
                 details[category + 'Comp'] = count;
                 competitionScore += limitedScore;
-                totalScore += limitedScore;
-                if (rawScore > limitedScore) {
-                    extraScore.competition = (extraScore.competition || 0) + (rawScore - limitedScore);
-                }
-                console.log(`${category}竞赛得分:`, limitedScore, '超出:', rawScore - limitedScore);
+                console.log(`${category}竞赛得分:`, limitedScore, '原始分:', rawScore);
             }
         });
         
+        // 计算竞赛超出分
+        if (competitionRawScore > 5) {
+            extraScore.competition = competitionRawScore - 5;
+            console.log('竞赛获奖超出分:', extraScore.competition);
+        }
+        
+        totalScore += competitionScore;
+        
         // 证书认证 - 限制在5分内
+        let certRawScore = 0;
         let certScore = 0;
+        
         const advancedCertMatches = text.match(/(CPA|注册会计师|司法考试|法律职业资格|高级.{0,10}证书|PMP|CISSP)/gi);
         if (advancedCertMatches) {
             const rawScore = advancedCertMatches.length * 2;
+            certRawScore += rawScore;
             const limitedScore = Math.min(rawScore, 5);
             details.advancedCert = advancedCertMatches.length;
             certScore += limitedScore;
-            totalScore += limitedScore;
-            if (rawScore > 5) {
-                extraScore.certificate = (extraScore.certificate || 0) + (rawScore - 5);
-            }
-            console.log('高级证书得分:', limitedScore, '超出:', rawScore - limitedScore);
+            console.log('高级证书得分:', limitedScore, '原始分:', rawScore);
         }
         
         const generalCertMatches = text.match(/(英语.*[四六]级|CET-[46]|托福|雅思|GRE|计算机.*级|软考|普通话.*级|驾驶证|驾照)/gi);
         if (generalCertMatches) {
             const rawScore = generalCertMatches.length * 1;
+            certRawScore += rawScore;
             const remainingLimit = Math.max(0, 5 - certScore);
             const limitedScore = Math.min(rawScore, remainingLimit);
             details.generalCert = generalCertMatches.length;
-            totalScore += limitedScore;
-            if (rawScore > limitedScore) {
-                extraScore.certificate = (extraScore.certificate || 0) + (rawScore - limitedScore);
-            }
-            console.log('一般证书得分:', limitedScore, '超出:', rawScore - limitedScore);
+            certScore += limitedScore;
+            console.log('一般证书得分:', limitedScore, '原始分:', rawScore);
         }
+        
+        // 计算证书超出分
+        if (certRawScore > 5) {
+            extraScore.certificate = certRawScore - 5;
+            console.log('证书认证超出分:', extraScore.certificate);
+        }
+        
+        totalScore += certScore;
         
         console.log('奖励荣誉最终得分:', totalScore, '详情:', details, '超出分:', extraScore);
         

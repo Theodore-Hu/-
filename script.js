@@ -403,16 +403,14 @@ class ResumeScoreApp {
         specDiv.className = 'specialization-info-separate';
         
         const specTypes = {
-            'programming': '💻 编程开发',
-            'data': '📊 数据分析', 
-            'design': '🎨 设计创作',
-            'engineering': '⚙️ 工程技术',
-            'academic': '🎓 学术研究',
-            'practical': '💼 实践应用'
+            'education': '🎓 学历层次',
+            'skills': '💻 技能专精',
+            'experience': '💼 实践经验', 
+            'achievements': '🏆 学术成果'
         };
         
         let specDetails = specializations.map(spec => 
-            `${specTypes[spec.type]} Lv.${spec.level} (+${spec.bonus}分)`
+            `${specTypes[spec.type] || spec.type} Lv.${spec.level} (+${spec.bonus}分)`
         ).join(' • ');
         
         specDiv.innerHTML = `

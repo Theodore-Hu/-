@@ -165,10 +165,52 @@ function displayResults(result) {
     // 更新建议
     updateSuggestions(result.suggestions);
     
+    // 显示专精信息
+    if (result.specializations && result.specializations.length > 0) {
+        showSpecializationInfo(result.specializations);
+    }
+    
     // 启动动画
     setTimeout(() => {
         animateScoreItems();
     }, 500);
+}
+
+// 新增：显示专精信息
+function showSpecializationInfo(specializations) {
+    const container = document.querySelector('.score-overview');
+    
+    const specDiv = document.createElement('div');
+    specDiv.className = 'specialization-info';
+    specDiv.style.cssText = `
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-top: 20px;
+        text-align: center;
+        animation: fadeInUp 0.6s ease;
+    `;
+    
+    const specTypes = {
+        'programming': '💻 编程开发专精',
+        'data': '📊 数据分析专精', 
+        'design': '🎨 设计创作专精',
+        'engineering': '⚙️ 工程技术专精',
+        'academic': '🎓 学术研究专精',
+        'practical': '💼 实践应用专精'
+    };
+    
+    const specTexts = specializations.map(spec => specTypes[spec.type]).filter(Boolean);
+    const totalBonus = specializations.reduce((sum, s) => sum + s.bonus, 0);
+    
+    specDiv.innerHTML = `
+        <div style="font-weight: 600; margin-bottom: 5px;">⭐ 检测到专精领域</div>
+        <div style="font-size: 0.9em;">${specTexts.join(' • ')}</div>
+        <div style="font-size: 0.8em; margin-top: 5px; opacity: 0.9;">专精加成: +${totalBonus}分</div>
+    `;
+    
+    container.appendChild(specDiv);
 }
 
 // 更新总分显示
@@ -269,7 +311,6 @@ function updateDetailedScores(categoryScores) {
     const categoryInfo = {
         basicInfo: {
             name: '📋 基本信息',
-            icon: '📋',
             subcategories: {
                 name: '姓名信息',
                 phone: '联系电话',
@@ -279,7 +320,6 @@ function updateDetailedScores(categoryScores) {
         },
         education: {
             name: '🎓 教育背景',
-            icon: '🎓',
             subcategories: {
                 school: '学校层次',
                 academic: '学术表现',
@@ -288,18 +328,17 @@ function updateDetailedScores(categoryScores) {
         },
         skills: {
             name: '💻 专业技能',
-            icon: '💻',
             subcategories: {
                 programming: '编程开发',
                 design: '设计创作',
                 data: '数据分析',
+                engineering: '工程技术',
                 business: '商务技能',
                 language: '语言能力'
             }
         },
         experience: {
             name: '💼 实践经验',
-            icon: '💼',
             subcategories: {
                 internship: '实习经历',
                 project: '项目经验',
@@ -308,7 +347,6 @@ function updateDetailedScores(categoryScores) {
         },
         achievements: {
             name: '🏆 奖励荣誉',
-            icon: '🏆',
             subcategories: {
                 scholarship: '奖学金',
                 competition: '竞赛获奖',
@@ -502,9 +540,17 @@ function updateJobRecommendations(jobs) {
         item.className = 'job-item';
         item.style.animationDelay = (index * 0.1) + 's';
         
+        // 根据匹配度设置不同的边框颜色
+        let borderColor = '#667eea';
+        if (job.match >= 85) borderColor = '#48bb78';
+        else if (job.match >= 70) borderColor = '#ed8936';
+        else if (job.match < 60) borderColor = '#f56565';
+        
+        item.style.borderLeftColor = borderColor;
+        
         item.innerHTML = `
             <div class="job-title">${job.category}</div>
-            <div class="job-match">匹配度: ${job.match}%</div>
+            <div class="job-match" style="color: ${borderColor};">匹配度: ${job.match}%</div>
             <div class="job-reason">${job.reason}</div>
         `;
         
@@ -519,11 +565,23 @@ function updateSuggestions(suggestions) {
     
     suggestions.forEach((suggestion, index) => {
         const item = document.createElement('div');
-        item.className = suggestion.includes('质量很好') ? 'suggestion-item positive' : 'suggestion-item';
+        item.className = suggestion.includes('质量很好') || suggestion.includes('名校背景') || suggestion.includes('充分利用') ? 
+                          'suggestion-item positive' : 'suggestion-item';
         item.style.animationDelay = (index * 0.1) + 's';
         
+        // 添加图标
+        let icon = '💡';
+        if (suggestion.includes('完善') || suggestion.includes('添加')) icon = '📝';
+        if (suggestion.includes('技能') || suggestion.includes('证书')) icon = '🔧';
+        if (suggestion.includes('实习') || suggestion.includes('项目')) icon = '💼';
+        if (suggestion.includes('竞赛') || suggestion.includes('奖学金')) icon = '🏆';
+        if (suggestion.includes('质量很好') || suggestion.includes('名校')) icon = '⭐';
+        
         item.innerHTML = `
-            <div>${suggestion}</div>
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                <span style="font-size: 1.2em; margin-top: 2px;">${icon}</span>
+                <span>${suggestion}</span>
+            </div>
         `;
         
         container.appendChild(item);
@@ -578,7 +636,40 @@ function hideLoading() {
 
 // 显示错误信息
 function showError(message) {
-    alert('❌ ' + message);
+    // 创建更友好的错误提示
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #fed7d7;
+        color: #9b2c2c;
+        padding: 16px 20px;
+        border-radius: 8px;
+        border-left: 4px solid #f56565;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        z-index: 1000;
+        max-width: 400px;
+        animation: slideInRight 0.3s ease;
+    `;
+    
+    errorDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.2em;">❌</span>
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" 
+                    style="margin-left: auto; background: none; border: none; font-size: 1.2em; cursor: pointer; color: #9b2c2c;">×</button>
+        </div>
+    `;
+    
+    document.body.appendChild(errorDiv);
+    
+    // 3秒后自动消失
+    setTimeout(() => {
+        if (errorDiv.parentElement) {
+            errorDiv.remove();
+        }
+    }, 3000);
 }
 
 // 获取最大分数（兼容旧版本）
@@ -593,7 +684,7 @@ function getMaxScore(category) {
     return maxScores[category] || 10;
 }
 
-// 导出功能（可选）
+// 导出功能（增强版）
 function exportResults() {
     if (!currentAnalysis) {
         showError('没有可导出的分析结果');
@@ -606,23 +697,48 @@ function exportResults() {
     
     const a = document.createElement('a');
     a.href = url;
-    a.download = '简历分析报告.txt';
+    a.download = `简历分析报告_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     
     URL.revokeObjectURL(url);
 }
 
-// 生成报告内容
+// 生成报告内容（增强版）
 function generateReport(analysis) {
     let report = `简历分析报告
 ==================
+生成时间: ${new Date().toLocaleString()}
 
+📊 总体评分
 总分: ${analysis.totalScore}/100分
 等级: ${getScoreLevel(analysis.totalScore).text}
+评语: ${getScoreLevel(analysis.totalScore).summary}
 
-详细评分:
 `;
     
+    // 专精信息
+    if (analysis.specializations && analysis.specializations.length > 0) {
+        report += `⭐ 专精领域识别
+`;
+        const specTypes = {
+            'programming': '编程开发专精',
+            'data': '数据分析专精', 
+            'design': '设计创作专精',
+            'engineering': '工程技术专精',
+            'academic': '学术研究专精',
+            'practical': '实践应用专精'
+        };
+        
+        analysis.specializations.forEach(spec => {
+            report += `- ${specTypes[spec.type] || spec.type}: 等级${spec.level} (+${spec.bonus}分加成)
+`;
+        });
+        report += '\n';
+    }
+    
+    // 详细评分
+    report += `📋 详细评分
+`;
     const categoryNames = {
         basicInfo: '基本信息',
         education: '教育背景',
@@ -633,20 +749,61 @@ function generateReport(analysis) {
     
     Object.entries(analysis.categoryScores).forEach(([category, scoreData]) => {
         const score = typeof scoreData === 'object' ? scoreData.total : scoreData;
-        report += `- ${categoryNames[category]}: ${score}分\n`;
+        const maxScore = typeof scoreData === 'object' ? 
+            Object.values(scoreData.maxScores || {}).reduce((a, b) => a + b, 0) : 
+            getMaxScore(category);
+        report += `- ${categoryNames[category]}: ${score}/${maxScore}分
+`;
     });
     
-    report += `\n岗位推荐:\n`;
+    report += `
+🎯 岗位推荐
+`;
     analysis.jobRecommendations.forEach((job, index) => {
-        report += `${index + 1}. ${job.category} (匹配度: ${job.match}%)\n   ${job.reason}\n`;
+        report += `${index + 1}. ${job.category} (匹配度: ${job.match}%)
+   推荐理由: ${job.reason}
+`;
     });
     
-    report += `\n改进建议:\n`;
+    report += `
+💡 改进建议
+`;
     analysis.suggestions.forEach((suggestion, index) => {
-        report += `${index + 1}. ${suggestion}\n`;
+        report += `${index + 1}. ${suggestion}
+`;
     });
     
-    report += `\n生成时间: ${new Date().toLocaleString()}`;
+    report += `
+---
+本报告由简历评分工具自动生成
+建议结合个人实际情况和目标岗位要求进行参考`;
     
     return report;
 }
+
+// 添加CSS动画
+const style = document.createElement('style');
+style.textContent = `
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+`;
+document.head.appendChild(style);

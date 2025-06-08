@@ -24,12 +24,10 @@ class ResumeScoreApp {
     }
     
     setupEventListeners() {
-        // 防抖处理的文件上传
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const textarea = document.getElementById('resumeText');
         
-        // 拖拽上传事件
         const dragEvents = {
             dragover: (e) => {
                 e.preventDefault();
@@ -54,7 +52,6 @@ class ResumeScoreApp {
             this.eventListeners.set(`uploadArea-${event}`, { element: uploadArea, event, handler });
         });
         
-        // 文件选择事件
         const fileChangeHandler = (e) => {
             if (e.target.files.length > 0) {
                 this.handleFileUpload(e.target.files[0]);
@@ -63,7 +60,6 @@ class ResumeScoreApp {
         fileInput.addEventListener('change', fileChangeHandler);
         this.eventListeners.set('fileInput-change', { element: fileInput, event: 'change', handler: fileChangeHandler });
         
-        // 文本输入事件（防抖）
         const textInputHandler = this.debounce(() => {
             this.checkTextInput();
             this.updateCharacterCount();
@@ -72,7 +68,6 @@ class ResumeScoreApp {
         textarea.addEventListener('input', textInputHandler);
         this.eventListeners.set('textarea-input', { element: textarea, event: 'input', handler: textInputHandler });
         
-        // 粘贴事件处理
         const pasteHandler = (e) => {
             setTimeout(() => {
                 this.checkTextInput();
@@ -85,13 +80,11 @@ class ResumeScoreApp {
     
     setupKeyboardShortcuts() {
         const keydownHandler = (e) => {
-            // Ctrl/Cmd + U: 上传文件
             if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
                 e.preventDefault();
                 document.getElementById('fileInput').click();
             }
             
-            // Ctrl/Cmd + Enter: 开始分析
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
                 if (!document.querySelector('.analyze-btn').disabled) {
@@ -99,7 +92,6 @@ class ResumeScoreApp {
                 }
             }
             
-            // Ctrl/Cmd + E: 导出报告
             if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
                 e.preventDefault();
                 if (this.currentAnalysis) {
@@ -107,13 +99,11 @@ class ResumeScoreApp {
                 }
             }
             
-            // F1: 显示/隐藏快捷键帮助
             if (e.key === 'F1') {
                 e.preventDefault();
                 this.toggleKeyboardShortcuts();
             }
             
-            // Esc: 关闭弹窗
             if (e.key === 'Escape') {
                 this.closeModals();
             }
@@ -122,7 +112,6 @@ class ResumeScoreApp {
         this.eventListeners.set('document-keydown', { element: document, event: 'keydown', handler: keydownHandler });
     }
     
-    // 防抖函数
     debounce(func, wait) {
         let timeout;
         return function executedFunction(...args) {
@@ -170,7 +159,6 @@ class ResumeScoreApp {
             return;
         }
         
-        // 文件验证
         const validation = this.validateFile(file);
         if (!validation.valid) {
             this.showToast(validation.message, 'error');
@@ -181,6 +169,7 @@ class ResumeScoreApp {
         this.showLoading('正在解析文件...');
         
         try {
+            const startTime = performance.now();
             const text = await ResumeParser.parseFile(file);
             
             if (text.trim().length < 50) {
@@ -192,33 +181,39 @@ class ResumeScoreApp {
             this.checkTextInput();
             
             this.hideLoading();
+            
+            const processingTime = performance.now() - startTime;
+            console.log(`File processing time: ${processingTime.toFixed(2)}ms`);
+            
             this.showToast('文件解析成功！', 'success');
             
-            // 自动开始分析
             setTimeout(() => {
                 this.analyzeResume();
             }, 500);
         } catch (error) {
             this.hideLoading();
-            this.showToast('文件解析失败: ' + error.message, 'error');
-            console.error('File parsing error:', error);
+            this.handleError(error, 'handleFileUpload');
         } finally {
             this.isProcessing = false;
         }
     }
     
+    // 增强的文件验证
     validateFile(file) {
-        // 文件大小检查
         if (file.size > 10 * 1024 * 1024) {
             return { valid: false, message: '文件大小超过10MB限制' };
         }
         
-        // 文件类型检查
+        if (file.size < 1024) {
+            return { valid: false, message: '文件太小，可能不是有效的简历文件' };
+        }
+        
         const allowedTypes = [
             'application/pdf',
             'application/msword',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         ];
+        
         const fileName = file.name.toLowerCase();
         const isValidType = allowedTypes.includes(file.type) || 
                            fileName.endsWith('.pdf') || 
@@ -227,6 +222,15 @@ class ResumeScoreApp {
         
         if (!isValidType) {
             return { valid: false, message: '请上传PDF或Word格式的文件' };
+        }
+        
+        if (fileName.length > 100) {
+            return { valid: false, message: '文件名过长，请重命名后上传' };
+        }
+        
+        const suspiciousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.com'];
+        if (suspiciousExtensions.some(ext => fileName.includes(ext))) {
+            return { valid: false, message: '检测到不安全的文件类型' };
         }
         
         return { valid: true };
@@ -248,22 +252,45 @@ class ResumeScoreApp {
         this.showLoading('正在分析简历...');
         
         try {
-            // 模拟分析延迟
+            const startTime = performance.now();
             await new Promise(resolve => setTimeout(resolve, 1500));
             
             const scorer = new ResumeScorer();
             const result = scorer.scoreResume(text);
+            
+            const analysisTime = performance.now() - startTime;
+            console.log(`Analysis time: ${analysisTime.toFixed(2)}ms`);
             
             this.hideLoading();
             this.displayResults(result);
             this.showToast('简历分析完成！', 'success');
         } catch (error) {
             this.hideLoading();
-            this.showToast('分析失败: ' + error.message, 'error');
-            console.error('Analysis error:', error);
+            this.handleError(error, 'analyzeResume');
         } finally {
             this.isProcessing = false;
         }
+    }
+    
+    // 错误处理方法
+    handleError(error, context = 'Unknown') {
+        console.error(`Error in ${context}:`, error);
+        
+        let message = '发生了一个错误，请重试';
+        
+        if (error.name === 'NetworkError') {
+            message = '网络连接问题，请检查网络后重试';
+        } else if (error.name === 'TypeError') {
+            message = '数据处理错误，请刷新页面重试';
+        } else if (error.message.includes('memory')) {
+            message = '内存不足，请尝试上传更小的文件';
+        } else if (error.message) {
+            message = error.message;
+        }
+        
+        this.showToast(message, 'error');
+        this.hideLoading();
+        this.isProcessing = false;
     }
     
     displayResults(result) {
@@ -273,24 +300,35 @@ class ResumeScoreApp {
         resultSection.style.display = 'block';
         resultSection.scrollIntoView({ behavior: 'smooth' });
         
-        // 更新各个部分
         this.updateTotalScore(result);
         this.updateDetailedScores(result.categoryScores, result.specializations);
         this.updateJobRecommendations(result.jobRecommendations);
         this.updateSuggestions(result.suggestions);
         
-        // 启动动画
         setTimeout(() => {
             this.animateScoreItems();
         }, 500);
     }
     
-    // 更新总分显示
+    // 修正后的总分显示更新
     updateTotalScore(result) {
+        // 添加安全检查
+        if (!result || typeof result.totalScore !== 'number') {
+            console.error('Invalid result data:', result);
+            this.showToast('数据错误，请重新分析', 'error');
+            return;
+        }
+        
         const scoreElement = document.getElementById('totalScore');
         const levelElement = document.getElementById('scoreLevel');
         const summaryElement = document.getElementById('scoreSummary');
         const circleElement = document.getElementById('scoreCircle');
+        
+        // 确保元素存在
+        if (!scoreElement || !levelElement || !summaryElement || !circleElement) {
+            console.error('Required DOM elements not found');
+            return;
+        }
         
         const baseScore = result.baseScore;
         const bonus = result.specializationBonus || 0;
@@ -303,12 +341,10 @@ class ResumeScoreApp {
         );
         existingSpecInfos.forEach(el => el.remove());
         
-        // 完全清空现有内容
         scoreElement.innerHTML = '';
         scoreElement.className = 'score-number';
         
         if (bonus > 0) {
-            // 有专精加成时的显示
             scoreElement.innerHTML = `
                 <div class="total-score-main">${totalScore}</div>
                 <div class="score-breakdown-compact">
@@ -318,21 +354,17 @@ class ResumeScoreApp {
                 </div>
             `;
         } else {
-            // 无专精加成时的简单显示
             scoreElement.innerHTML = `
                 <div class="total-score-main">${totalScore}</div>
             `;
         }
         
-        // 设置圆环进度
         const basePercentage = Math.min((baseScore / 100) * 360, 360);
         
-        // 清理可能存在的额外元素
         const existingElements = circleElement.querySelectorAll('.bonus-ring, .specialization-info');
         existingElements.forEach(el => el.remove());
         
         if (bonus > 0) {
-            // 基础圆环 + 专精效果
             circleElement.style.background = `conic-gradient(
                 #48bb78 0deg, 
                 #48bb78 ${basePercentage}deg,
@@ -353,18 +385,15 @@ class ResumeScoreApp {
             circleElement.classList.remove('excellent-plus');
         }
         
-        // 设置等级和颜色
         const level = this.getScoreLevel(totalScore);
         levelElement.textContent = level.text;
         levelElement.style.color = level.color;
         
-        // 更新总结文字
         summaryElement.innerHTML = level.summary;
         if (bonus > 0) {
             summaryElement.innerHTML += `<br><small style="color: #667eea; font-weight: 500; margin-top: 8px; display: inline-block;">🌟 专精加成让您脱颖而出！</small>`;
         }
         
-        // 如果有专精信息，在总分区域下方单独显示
         if (result.specializations && result.specializations.length > 0) {
             setTimeout(() => {
                 this.showSpecializationInfo(result.specializations, result.specializationBonus);
@@ -372,11 +401,9 @@ class ResumeScoreApp {
         }
     }
     
-    // 显示专精信息
     showSpecializationInfo(specializations, totalBonus) {
         const container = document.querySelector('.score-overview');
         
-        // 再次确保移除所有可能的专精信息
         const existingSpecInfos = container.querySelectorAll(
             '.specialization-info, .specialization-info-separate'
         );
@@ -385,7 +412,6 @@ class ResumeScoreApp {
         const specDiv = document.createElement('div');
         specDiv.className = 'specialization-info-separate';
         
-        // 按类别分组显示专精信息
         const categoryMap = {
             skill: '🔧 技能专精',
             experience: '💼 实践专精'
@@ -423,7 +449,6 @@ class ResumeScoreApp {
         container.appendChild(specDiv);
     }
     
-    // 支持超过100分的等级系统 - 修正版
     getScoreLevel(score) {
         if (score >= 140) {
             return {
@@ -482,14 +507,13 @@ class ResumeScoreApp {
         }
     }
     
-    // 获取分数颜色
     getScoreColor(score) {
         if (score >= 80) return '#48bb78';
         if (score >= 60) return '#ed8936';
         return '#e53e3e';
     }
     
-    // 更新详细评分
+    // 其余方法保持不变...
     updateDetailedScores(categoryScores, specializations) {
         const container = document.getElementById('scoreCategories');
         const categoryInfo = {
@@ -554,11 +578,9 @@ class ResumeScoreApp {
             item.className = 'score-item';
             item.style.animationDelay = `${index * 0.1}s`;
             
-            // 获取基础分数和专精分数
             const baseScore = scoreData.total;
             const maxScore = this.getMaxScore(category);
             
-            // 查找该类别的专精加成
             const categorySpecializations = specializations.filter(spec => {
                 if (category === 'skills') {
                     return spec.category === 'skill';
@@ -572,7 +594,6 @@ class ResumeScoreApp {
             const displayScore = baseScore + specializationBonus;
             const hasSpecialization = specializationBonus > 0;
             
-            // 计算百分比
             const basePercentage = Math.min((baseScore / maxScore) * 100, 100);
             const bonusPercentage = Math.min((specializationBonus / maxScore) * 100, 30);
             
@@ -664,7 +685,6 @@ class ResumeScoreApp {
             
             container.appendChild(item);
             
-            // 延迟启动进度条动画
             setTimeout(() => {
                 const baseFill = item.querySelector('.base-progress');
                 if (baseFill) {
@@ -683,7 +703,6 @@ class ResumeScoreApp {
         });
     }
     
-    // 生成子项目HTML
     generateSubcategoryHTML(scoreData, subcategories, category) {
         if (!scoreData.details) {
             return `
@@ -699,7 +718,6 @@ class ResumeScoreApp {
             let score, maxScore;
             
             if (category === 'basicInfo') {
-                // 基本信息特殊处理
                 score = scoreData.details[key] ? 2 : 0;
                 maxScore = 2;
             } else {
@@ -708,7 +726,7 @@ class ResumeScoreApp {
                     const maxScoreMap = {
                         school: 15,
                         academic: 5,
-                        degree: '不限'
+                        degree: 5
                     };
                     maxScore = maxScoreMap[key] || 1;
                 } else {
@@ -743,7 +761,113 @@ class ResumeScoreApp {
         return html;
     }
     
-    // 获取分数等级
+    toggleCategoryDetail(category) {
+        const detailDiv = document.getElementById(`detail-${category}`);
+        const button = document.querySelector(`button[onclick="app.toggleCategoryDetail('${category}')"]`);
+        
+        if (detailDiv.style.display === 'none') {
+            detailDiv.style.display = 'block';
+            button.classList.remove('collapsed');
+            button.classList.add('expanded');
+            button.textContent = '收起';
+            
+            setTimeout(() => {
+                const subProgressBars = detailDiv.querySelectorAll('.subcategory-progress-fill');
+                subProgressBars.forEach((bar, index) => {
+                    setTimeout(() => {
+                        const targetWidth = bar.getAttribute('data-target');
+                        bar.style.width = targetWidth + '%';
+                    }, index * 100);
+                });
+            }, 100);
+            
+        } else {
+            detailDiv.style.display = 'none';
+            button.classList.remove('expanded');
+            button.classList.add('collapsed');
+            button.textContent = '详情';
+        }
+    }
+    
+    animateScoreItems() {
+        const scoreItems = document.querySelectorAll('.score-item');
+        scoreItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                item.style.transition = 'all 0.5s ease';
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, index * 150);
+        });
+    }
+    
+    updateJobRecommendations(jobs) {
+        const container = document.getElementById('jobList');
+        container.innerHTML = '';
+        
+        jobs.forEach((job, index) => {
+            const item = document.createElement('div');
+            item.className = 'job-item';
+            item.style.animationDelay = (index * 0.1) + 's';
+            
+            let borderColor = '#667eea';
+            if (job.match >= 85) borderColor = '#48bb78';
+            else if (job.match >= 70) borderColor = '#ed8936';
+            else if (job.match < 60) borderColor = '#f56565';
+            
+            item.style.borderLeftColor = borderColor;
+            
+            item.innerHTML = `
+                <div class="job-title">${job.category}</div>
+                <div class="job-match" style="color: ${borderColor};">匹配度: ${Math.round(job.match)}%</div>
+                <div class="job-reason">${job.reason}</div>
+            `;
+            
+            container.appendChild(item);
+        });
+    }
+    
+    updateSuggestions(suggestions) {
+        const container = document.getElementById('suggestionList');
+        container.innerHTML = '';
+        
+        suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.className = suggestion.includes('质量很好') || suggestion.includes('名校背景') || suggestion.includes('充分利用') ? 
+                              'suggestion-item positive' : 'suggestion-item';
+            item.style.animationDelay = (index * 0.1) + 's';
+            
+            let icon = '💡';
+            if (suggestion.includes('完善') || suggestion.includes('添加')) icon = '📝';
+            if (suggestion.includes('技能') || suggestion.includes('证书')) icon = '🔧';
+            if (suggestion.includes('实习') || suggestion.includes('项目')) icon = '💼';
+            if (suggestion.includes('竞赛') || suggestion.includes('奖学金')) icon = '🏆';
+            if (suggestion.includes('质量很好') || suggestion.includes('名校')) icon = '⭐';
+            
+            item.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <span style="font-size: 1.2em; margin-top: 2px;">${icon}</span>
+                    <span>${suggestion}</span>
+                </div>
+            `;
+            
+            container.appendChild(item);
+        });
+    }
+    
+    getMaxScore(category) {
+        const maxScores = {
+            basicInfo: 10,
+            education: 25,
+            skills: 20,
+            experience: 30,
+            achievements: 15
+        };
+        return maxScores[category] || 10;
+    }
+    
     getScoreGrade(score, maxScore) {
         const percentage = maxScore === '不限' ? (score >= 5 ? 85 : score * 17) : (score / maxScore) * 100;
         
@@ -778,122 +902,6 @@ class ResumeScoreApp {
         }
     }
     
-    // 切换详情显示
-    toggleCategoryDetail(category) {
-        const detailDiv = document.getElementById(`detail-${category}`);
-        const button = document.querySelector(`button[onclick="app.toggleCategoryDetail('${category}')"]`);
-        
-        if (detailDiv.style.display === 'none') {
-            detailDiv.style.display = 'block';
-            button.classList.remove('collapsed');
-            button.classList.add('expanded');
-            button.textContent = '收起';
-            
-            // 启动子项进度条动画
-            setTimeout(() => {
-                const subProgressBars = detailDiv.querySelectorAll('.subcategory-progress-fill');
-                subProgressBars.forEach((bar, index) => {
-                    setTimeout(() => {
-                        const targetWidth = bar.getAttribute('data-target');
-                        bar.style.width = targetWidth + '%';
-                    }, index * 100);
-                });
-            }, 100);
-            
-        } else {
-            detailDiv.style.display = 'none';
-            button.classList.remove('expanded');
-            button.classList.add('collapsed');
-            button.textContent = '详情';
-        }
-    }
-    
-    // 添加进入动画
-    animateScoreItems() {
-        const scoreItems = document.querySelectorAll('.score-item');
-        scoreItems.forEach((item, index) => {
-            item.style.opacity = '0';
-            item.style.transform = 'translateY(20px)';
-            
-            setTimeout(() => {
-                item.style.transition = 'all 0.5s ease';
-                item.style.opacity = '1';
-                item.style.transform = 'translateY(0)';
-            }, index * 150);
-        });
-    }
-    
-    // 更新岗位推荐
-    updateJobRecommendations(jobs) {
-        const container = document.getElementById('jobList');
-        container.innerHTML = '';
-        
-        jobs.forEach((job, index) => {
-            const item = document.createElement('div');
-            item.className = 'job-item';
-            item.style.animationDelay = (index * 0.1) + 's';
-            
-            // 根据匹配度设置不同的边框颜色
-            let borderColor = '#667eea';
-            if (job.match >= 85) borderColor = '#48bb78';
-            else if (job.match >= 70) borderColor = '#ed8936';
-            else if (job.match < 60) borderColor = '#f56565';
-            
-            item.style.borderLeftColor = borderColor;
-            
-            item.innerHTML = `
-                <div class="job-title">${job.category}</div>
-                <div class="job-match" style="color: ${borderColor};">匹配度: ${Math.round(job.match)}%</div>
-                <div class="job-reason">${job.reason}</div>
-            `;
-            
-            container.appendChild(item);
-        });
-    }
-    
-    // 更新建议
-    updateSuggestions(suggestions) {
-        const container = document.getElementById('suggestionList');
-        container.innerHTML = '';
-        
-        suggestions.forEach((suggestion, index) => {
-            const item = document.createElement('div');
-            item.className = suggestion.includes('质量很好') || suggestion.includes('名校背景') || suggestion.includes('充分利用') ? 
-                              'suggestion-item positive' : 'suggestion-item';
-            item.style.animationDelay = (index * 0.1) + 's';
-            
-            // 添加图标
-            let icon = '💡';
-            if (suggestion.includes('完善') || suggestion.includes('添加')) icon = '📝';
-            if (suggestion.includes('技能') || suggestion.includes('证书')) icon = '🔧';
-            if (suggestion.includes('实习') || suggestion.includes('项目')) icon = '💼';
-            if (suggestion.includes('竞赛') || suggestion.includes('奖学金')) icon = '🏆';
-            if (suggestion.includes('质量很好') || suggestion.includes('名校')) icon = '⭐';
-            
-            item.innerHTML = `
-                <div style="display: flex; align-items: flex-start; gap: 10px;">
-                    <span style="font-size: 1.2em; margin-top: 2px;">${icon}</span>
-                    <span>${suggestion}</span>
-                </div>
-            `;
-            
-            container.appendChild(item);
-        });
-    }
-    
-    // 更新最大分数
-    getMaxScore(category) {
-        const maxScores = {
-            basicInfo: 10,
-            education: 25,
-            skills: 20,
-            experience: 30,
-            achievements: 15
-        };
-        return maxScores[category] || 10;
-    }
-    
-    // Toast 通知系统
     showToast(message, type = 'info', duration = 3000) {
         const container = document.getElementById('toastContainer');
         const toast = document.createElement('div');
@@ -914,21 +922,18 @@ class ResumeScoreApp {
         
         container.appendChild(toast);
         
-        // 自动移除
         setTimeout(() => {
             if (toast.parentElement) {
                 toast.remove();
             }
         }, duration);
         
-        // 限制最大数量
         const toasts = container.querySelectorAll('.toast');
         if (toasts.length > 3) {
             toasts[0].remove();
         }
     }
     
-    // 加载状态管理
     showLoading(message) {
         const overlay = document.getElementById('loadingOverlay');
         const text = document.getElementById('loadingText');
@@ -941,7 +946,6 @@ class ResumeScoreApp {
         overlay.style.display = 'none';
     }
     
-    // 导出功能
     exportResults() {
         if (!this.currentAnalysis) {
             this.showToast('没有可导出的分析结果', 'warning');
@@ -969,7 +973,6 @@ class ResumeScoreApp {
         URL.revokeObjectURL(url);
     }
     
-    // 分享功能
     async shareResults() {
         if (!this.currentAnalysis) {
             this.showToast('没有可分享的结果', 'warning');
@@ -987,7 +990,6 @@ class ResumeScoreApp {
                 await navigator.share(shareData);
                 this.showToast('分享成功！', 'success');
             } else {
-                // 降级到复制链接
                 await navigator.clipboard.writeText(window.location.href);
                 this.showToast('链接已复制到剪贴板！', 'success');
             }
@@ -996,7 +998,6 @@ class ResumeScoreApp {
         }
     }
     
-    // 清空功能
     clearTextarea() {
         document.getElementById('resumeText').value = '';
         this.updateCharacterCount();
@@ -1004,7 +1005,6 @@ class ResumeScoreApp {
         this.showToast('内容已清空', 'info');
     }
     
-    // 重新分析
     analyzeAgain() {
         const resultSection = document.getElementById('resultSection');
         resultSection.style.display = 'none';
@@ -1013,7 +1013,6 @@ class ResumeScoreApp {
         this.showToast('可以重新上传或粘贴简历内容', 'info');
     }
     
-    // 主题切换
     toggleTheme() {
         this.isDarkTheme = !this.isDarkTheme;
         document.body.classList.toggle('dark-theme');
@@ -1025,7 +1024,6 @@ class ResumeScoreApp {
         this.showToast(`已切换到${this.isDarkTheme ? '深色' : '浅色'}模式`, 'info');
     }
     
-    // 快捷键帮助
     toggleKeyboardShortcuts() {
         const shortcuts = document.getElementById('keyboardShortcuts');
         shortcuts.style.display = shortcuts.style.display === 'none' ? 'block' : 'none';
@@ -1035,7 +1033,6 @@ class ResumeScoreApp {
         document.getElementById('keyboardShortcuts').style.display = 'none';
     }
     
-    // 生成报告内容
     generateReport(analysis) {
         let report = `简历分析报告
 ==================
@@ -1050,7 +1047,6 @@ class ResumeScoreApp {
 
 `;
         
-        // 专精信息
         if (analysis.specializations && analysis.specializations.length > 0) {
             report += `⭐ 专精领域识别
 `;
@@ -1061,7 +1057,6 @@ class ResumeScoreApp {
             report += '\n';
         }
         
-        // 详细评分
         report += `📋 详细评分
 `;
         const categoryNames = {
@@ -1091,15 +1086,14 @@ class ResumeScoreApp {
         analysis.jobRecommendations.forEach((job, index) => {
             report += `${index + 1}. ${job.category} (匹配度: ${Math.round(job.match)}%)
    推荐理由: ${job.reason}
-
 `;
         });
         
-        report += `💡 改进建议
+        report += `
+💡 改进建议
 `;
         analysis.suggestions.forEach((suggestion, index) => {
             report += `${index + 1}. ${suggestion}
-
 `;
         });
         
@@ -1111,12 +1105,35 @@ class ResumeScoreApp {
         return report;
     }
     
-    // 清理事件监听器
     destroy() {
         this.eventListeners.forEach(({ element, event, handler }) => {
             element.removeEventListener(event, handler);
         });
         this.eventListeners.clear();
+    }
+}
+
+// 性能监控类
+class PerformanceMonitor {
+    static trackFileProcessing(fileName, startTime) {
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        
+        console.log(`File processing time for ${fileName}: ${duration.toFixed(2)}ms`);
+        
+        if (duration > 5000) {
+            console.warn('File processing took longer than expected');
+        }
+        
+        return duration;
+    }
+    
+    static trackAnalysis(startTime) {
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        
+        console.log(`Analysis time: ${duration.toFixed(2)}ms`);
+        return duration;
     }
 }
 
@@ -1126,7 +1143,6 @@ function initializeApp() {
     try {
         app = new ResumeScoreApp();
         
-        // 检查必要的库是否加载
         if (typeof pdfjsLib !== 'undefined') {
             console.log('PDF.js 库加载成功');
         } else {
@@ -1139,7 +1155,6 @@ function initializeApp() {
             console.warn('Mammoth 库未加载，Word解析功能可能不可用');
         }
         
-        // 初始化多语言
         if (typeof i18n !== 'undefined') {
             i18n.updateUI();
         }
@@ -1228,7 +1243,6 @@ function showError(message) {
     
     document.body.appendChild(errorDiv);
     
-    // 3秒后自动消失
     setTimeout(() => {
         if (errorDiv.parentElement) {
             errorDiv.remove();
@@ -1293,5 +1307,5 @@ if ('performance' in window) {
 
 // 导出主要类（如果需要模块化使用）
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ResumeScoreApp, initializeApp };
+    module.exports = { ResumeScoreApp, PerformanceMonitor, initializeApp };
 }
